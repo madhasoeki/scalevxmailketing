@@ -24,7 +24,7 @@ from database import db
 db.init_app(app)
 
 # Import models after db initialization
-from models import Settings, ProductList, Lead, LeadHistory
+from models import Settings, ProductList, Lead, LeadHistory, get_wib_now as get_wib_now_naive
 
 # Import services
 from services.scalev_service import ScalevService
@@ -34,31 +34,31 @@ from services.lead_service import LeadService
 # Jinja2 Template Filters for WIB timezone
 @app.template_filter('to_wib')
 def to_wib_filter(dt):
-    """Convert UTC datetime to WIB"""
+    """Format datetime as WIB (database already stores in WIB)"""
     if dt is None:
         return '-'
-    # If naive datetime, assume UTC
+    # Database stores naive datetime in WIB, just format it
     if dt.tzinfo is None:
-        dt = pytz.utc.localize(dt)
-    # Convert to WIB
+        return dt.strftime('%d-%m-%Y %H:%M WIB')
+    # If has timezone info, convert to WIB
     return dt.astimezone(WIB).strftime('%d-%m-%Y %H:%M WIB')
 
 @app.template_filter('to_wib_date')
 def to_wib_date_filter(dt):
-    """Convert UTC datetime to WIB date only"""
+    """Format datetime as WIB date only"""
     if dt is None:
         return '-'
     if dt.tzinfo is None:
-        dt = pytz.utc.localize(dt)
+        return dt.strftime('%d-%m-%Y')
     return dt.astimezone(WIB).strftime('%d-%m-%Y')
 
 @app.template_filter('to_wib_time')
 def to_wib_time_filter(dt):
-    """Convert UTC datetime to WIB time only"""
+    """Format datetime as WIB time only"""
     if dt is None:
         return '-'
     if dt.tzinfo is None:
-        dt = pytz.utc.localize(dt)
+        return dt.strftime('%H:%M WIB')
     return dt.astimezone(WIB).strftime('%H:%M WIB')
 
 # Initialize scheduler
@@ -138,7 +138,7 @@ def settings():
         settings_obj.scalev_api_key = scalev_api_key
         settings_obj.scalev_webhook_secret = scalev_webhook_secret
         settings_obj.mailketing_api_key = mailketing_api_key
-        settings_obj.updated_at = datetime.utcnow()
+        settings_obj.updated_at = get_wib_now_naive()
         
         db.session.commit()
         flash('Settings saved successfully!', 'success')

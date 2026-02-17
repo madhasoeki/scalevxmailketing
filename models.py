@@ -1,5 +1,13 @@
 from datetime import datetime
+import pytz
 from database import db
+
+# Timezone WIB (UTC+7)
+WIB = pytz.timezone('Asia/Jakarta')
+
+def get_wib_now():
+    """Get current datetime in WIB timezone"""
+    return datetime.now(WIB).replace(tzinfo=None)  # Remove tzinfo for SQLite compatibility
 
 class Settings(db.Model):
     """Store API keys and configuration"""
@@ -7,8 +15,8 @@ class Settings(db.Model):
     scalev_api_key = db.Column(db.String(255), nullable=True)
     scalev_webhook_secret = db.Column(db.String(255), nullable=True)
     mailketing_api_key = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_wib_now)
+    updated_at = db.Column(db.DateTime, default=get_wib_now, onupdate=get_wib_now)
     
     def __repr__(self):
         return f'<Settings {self.id}>'
@@ -27,8 +35,8 @@ class ProductList(db.Model):
     mailketing_list_closing = db.Column(db.String(100), nullable=True)
     mailketing_list_not_closing = db.Column(db.String(100), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_wib_now)
+    updated_at = db.Column(db.DateTime, default=get_wib_now, onupdate=get_wib_now)
     
     leads = db.relationship('Lead', backref='product_list', lazy=True)
     
@@ -47,9 +55,9 @@ class Lead(db.Model):
     sales_person_email = db.Column(db.String(255), nullable=True)
     status = db.Column(db.String(50), default='follow_up')  # follow_up, closing, not_closing
     order_data = db.Column(db.Text, nullable=True)  # JSON string of order details
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    follow_up_start = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_wib_now)
+    updated_at = db.Column(db.DateTime, default=get_wib_now, onupdate=get_wib_now)
+    follow_up_start = db.Column(db.DateTime, default=get_wib_now)
     closed_at = db.Column(db.DateTime, nullable=True)
     sent_to_mailketing = db.Column(db.Boolean, default=False)
     sent_to_mailketing_at = db.Column(db.DateTime, nullable=True)
@@ -64,7 +72,7 @@ class Lead(db.Model):
         """Calculate days in follow up"""
         if self.status != 'follow_up':
             return 0
-        delta = datetime.utcnow() - self.follow_up_start
+        delta = get_wib_now() - self.follow_up_start
         return delta.days
 
 class LeadHistory(db.Model):
@@ -74,7 +82,7 @@ class LeadHistory(db.Model):
     from_status = db.Column(db.String(50), nullable=True)
     to_status = db.Column(db.String(50), nullable=False)
     notes = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_wib_now)
     
     def __repr__(self):
         return f'<LeadHistory {self.lead_id}: {self.from_status} -> {self.to_status}>'

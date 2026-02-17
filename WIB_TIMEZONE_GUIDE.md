@@ -1,5 +1,12 @@
 # Panduan Penggunaan WIB Timezone
 
+## Cara Kerja Timezone di Aplikasi
+
+**Database menyimpan semua datetime dalam WIB (UTC+7) sebagai naive datetime.**
+- Semua kolom `created_at`, `updated_at`, `follow_up_start`, dll sudah otomatis pakai WIB
+- Tidak perlu konversi timezone saat insert atau update
+- Filter Jinja2 hanya melakukan formatting, bukan konversi
+
 ## Filter Jinja2 yang Tersedia
 
 ### 1. `to_wib` - Datetime lengkap

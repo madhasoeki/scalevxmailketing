@@ -6,9 +6,10 @@ class LeadService:
     
     def __init__(self, db):
         self.db = db
-        from models import Lead, LeadHistory
+        from models import Lead, LeadHistory, get_wib_now
         self.Lead = Lead
         self.LeadHistory = LeadHistory
+        self.get_wib_now = get_wib_now
     
     def create_lead(self, product_list_id, order_id, name, email, phone=None, order_data=None, sales_person_name=None, sales_person_email=None):
         """Create a new lead in follow-up status"""
@@ -27,7 +28,7 @@ class LeadService:
             sales_person_email=sales_person_email,
             status='follow_up',
             order_data=json.dumps(order_data) if order_data else None,
-            follow_up_start=datetime.utcnow()
+            follow_up_start=self.get_wib_now()
         )
         
         self.db.session.add(lead)
@@ -48,8 +49,8 @@ class LeadService:
         """Move lead to closing status"""
         old_status = lead.status
         lead.status = 'closing'
-        lead.closed_at = datetime.utcnow()
-        lead.updated_at = datetime.utcnow()
+        lead.closed_at = self.get_wib_now()
+        lead.updated_at = self.get_wib_now()
         
         # Add history entry
         history = self.LeadHistory(
@@ -67,7 +68,7 @@ class LeadService:
         """Move lead to not closing status"""
         old_status = lead.status
         lead.status = 'not_closing'
-        lead.updated_at = datetime.utcnow()
+        lead.updated_at = self.get_wib_now()
         
         # Add history entry
         history = self.LeadHistory(
@@ -83,7 +84,7 @@ class LeadService:
     
     def get_expired_follow_up_leads(self, days=7):
         """Get leads that have been in follow-up for more than specified days"""
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = self.get_wib_now() - timedelta(days=days)
         
         expired_leads = self.Lead.query.filter(
             self.Lead.status == 'follow_up',
@@ -95,7 +96,7 @@ class LeadService:
     def mark_sent_to_mailketing(self, lead, list_id=None):
         """Mark lead as sent to Mailketing"""
         lead.sent_to_mailketing = True
-        lead.sent_to_mailketing_at = datetime.utcnow()
+        lead.sent_to_mailketing_at = self.get_wib_now()
         if list_id:
             lead.mailketing_list_id = list_id
         self.db.session.commit()
