@@ -696,32 +696,30 @@ def get_scalev_store_sales_people(store_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
 
-# Initialize database and scheduler on app startup (works with both Flask dev server and Gunicorn)
-with app.app_context():
-    db.create_all()
-    
-    # Auto-run migration for new columns
-    try:
-        from migrate_database import migrate
-        print("\n🔄 Running database migration (safe - will skip existing columns)...")
-        migrate()
-    except Exception as e:
-        print(f"⚠️  Migration skipped or failed: {str(e)}")
-        print("Don't worry - this is normal if database is already migrated.")
-
-# Start scheduler (runs with Gunicorn in production)
-scheduler.add_job(
-    func=check_expired_leads,
-    trigger='interval',
-    hours=1,  # Check every hour
-    id='check_expired_leads',
-    name='Check expired follow-up leads',
-    replace_existing=True
-)
-scheduler.start()
-
 if __name__ == '__main__':
-    # Only runs when using Flask development server (not with Gunicorn)
+    with app.app_context():
+        db.create_all()
+        
+        # Auto-run migration for new columns
+        try:
+            from migrate_database import migrate
+            print("\n🔄 Running database migration (safe - will skip existing columns)...")
+            migrate()
+        except Exception as e:
+            print(f"⚠️  Migration skipped or failed: {str(e)}")
+            print("Don't worry - this is normal if database is already migrated.")
+    
+    # Start scheduler
+    scheduler.add_job(
+        func=check_expired_leads,
+        trigger='interval',
+        hours=1,  # Check every hour
+        id='check_expired_leads',
+        name='Check expired follow-up leads',
+        replace_existing=True
+    )
+    scheduler.start()
+    
     try:
         app.run(debug=False, host='0.0.0.0', port=5000)
     except (KeyboardInterrupt, SystemExit):
