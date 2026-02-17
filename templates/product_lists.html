@@ -116,14 +116,14 @@
 
 <!-- Add Product Modal -->
 <div class="modal fade" id="addProductModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Tambah Product List</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('add_product_list') }}" id="productListForm">
-                <div class="modal-body">
+                <div class="modal-body" style="min-height: 400px; max-height: 70vh; overflow-y: auto;">
                     <!-- Step 1: Store Selection -->
                     <div class="mb-4">
                         <h6 class="text-primary mb-3"><i class="bi bi-shop"></i> Step 1: Pilih Store</h6>
@@ -240,7 +240,7 @@
 
 <!-- Edit Product Modal -->
 <div class="modal fade" id="editProductModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Edit Product List</h5>
@@ -256,7 +256,7 @@
                 <input type="hidden" id="edit_sales_person_name" name="sales_person_name">
                 <input type="hidden" id="edit_sales_person_email" name="sales_person_email">
                 
-                <div class="modal-body">
+                <div class="modal-body" style="min-height: 400px; max-height: 70vh; overflow-y: auto;">
                     <!-- Display Store & Product (Read-only) -->
                     <div class="mb-4">
                         <h6 class="text-muted mb-3"><i class="bi bi-info-circle"></i> Informasi Product</h6>
@@ -345,6 +345,11 @@ $(document).ready(function() {
             url: '/api/scalev/stores',
             dataType: 'json',
             delay: 250,
+            data: function(params) {
+                return {
+                    q: params.term  // Send search term to server
+                };
+            },
             processResults: function(data) {
                 if (data.success && data.stores) {
                     return {

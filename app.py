@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
+import pytz
 import os
 import json
 import hmac
@@ -10,6 +11,13 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///scalevxmailketing.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Timezone Configuration (WIB = UTC+7)
+WIB = pytz.timezone('Asia/Jakarta')
+
+def get_wib_now():
+    """Get current time in WIB timezone"""
+    return datetime.now(WIB)
 
 # Initialize database
 from database import db
@@ -22,6 +30,36 @@ from models import Settings, ProductList, Lead, LeadHistory
 from services.scalev_service import ScalevService
 from services.mailketing_service import MailketingService
 from services.lead_service import LeadService
+
+# Jinja2 Template Filters for WIB timezone
+@app.template_filter('to_wib')
+def to_wib_filter(dt):
+    """Convert UTC datetime to WIB"""
+    if dt is None:
+        return '-'
+    # If naive datetime, assume UTC
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+    # Convert to WIB
+    return dt.astimezone(WIB).strftime('%d-%m-%Y %H:%M WIB')
+
+@app.template_filter('to_wib_date')
+def to_wib_date_filter(dt):
+    """Convert UTC datetime to WIB date only"""
+    if dt is None:
+        return '-'
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+    return dt.astimezone(WIB).strftime('%d-%m-%Y')
+
+@app.template_filter('to_wib_time')
+def to_wib_time_filter(dt):
+    """Convert UTC datetime to WIB time only"""
+    if dt is None:
+        return '-'
+    if dt.tzinfo is None:
+        dt = pytz.utc.localize(dt)
+    return dt.astimezone(WIB).strftime('%H:%M WIB')
 
 # Initialize scheduler
 scheduler = BackgroundScheduler()
@@ -712,7 +750,7 @@ def test_scalev():
 
 @app.route('/api/scalev/stores', methods=['GET'])
 def get_scalev_stores():
-    """Get all ScaleV stores"""
+    """Get all ScaleV stores with optional search"""
     settings_obj = Settings.query.first()
     
     if not settings_obj or not settings_obj.scalev_api_key:
@@ -721,6 +759,12 @@ def get_scalev_stores():
     try:
         scalev = ScalevService(settings_obj.scalev_api_key)
         stores = scalev.get_stores()
+        
+        # Filter based on search query (for Select2 search)
+        search_term = request.args.get('q', '').lower()
+        if search_term:
+            stores = [s for s in stores if search_term in s.get('name', '').lower() or search_term in str(s.get('id', ''))]
+        
         return jsonify({'success': True, 'stores': stores})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
