@@ -78,13 +78,35 @@
                             {% endif %}
                         </td>
                         <td>
-                            <form method="POST" action="{{ url_for('delete_product_list', list_id=list.id) }}" 
-                                  onsubmit="return confirm('Yakin ingin menghapus product ini?')" 
-                                  style="display: inline;">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <!-- Toggle Active/Inactive -->
+                                <form method="POST" action="{{ url_for('toggle_product_list', list_id=list.id) }}" 
+                                      style="display: inline;">
+                                    {% if list.is_active %}
+                                    <button type="submit" class="btn btn-outline-warning" 
+                                            title="Nonaktifkan"
+                                            onclick="return confirm('Nonaktifkan product list ini?')">
+                                        <i class="bi bi-pause-circle"></i>
+                                    </button>
+                                    {% else %}
+                                    <button type="submit" class="btn btn-outline-success" 
+                                            title="Aktifkan"
+                                            onclick="return confirm('Aktifkan product list ini?')">
+                                        <i class="bi bi-play-circle"></i>
+                                    </button>
+                                    {% endif %}
+                                </form>
+                                
+                                <!-- Delete -->
+                                <form method="POST" action="{{ url_for('delete_product_list', list_id=list.id) }}" 
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-outline-danger" 
+                                            title="Hapus"
+                                            onclick="return confirm('Yakin ingin menghapus product list ini?\\n\\nProduct: {{ list.product_name }}\\nStore: {{ list.store_name }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

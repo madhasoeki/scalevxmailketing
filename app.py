@@ -174,11 +174,40 @@ def add_product_list():
 @app.route('/product-lists/<int:list_id>/delete', methods=['POST'])
 def delete_product_list(list_id):
     """Delete product list"""
-    product_list = ProductList.query.get_or_404(list_id)
-    db.session.delete(product_list)
-    db.session.commit()
+    try:
+        product_list = ProductList.query.get_or_404(list_id)
+        product_name = product_list.product_name
+        
+        # Check if there are leads associated
+        leads_count = Lead.query.filter_by(product_list_id=list_id).count()
+        if leads_count > 0:
+            flash(f'Tidak dapat menghapus "{product_name}" karena masih ada {leads_count} leads terkait. Hapus leads terlebih dahulu.', 'danger')
+            return redirect(url_for('product_lists'))
+        
+        db.session.delete(product_list)
+        db.session.commit()
+        
+        flash(f'Product list "{product_name}" berhasil dihapus!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error menghapus product list: {str(e)}', 'danger')
     
-    flash(f'Product list "{product_list.product_name}" deleted successfully!', 'success')
+    return redirect(url_for('product_lists'))
+
+@app.route('/product-lists/<int:list_id>/toggle', methods=['POST'])
+def toggle_product_list(list_id):
+    """Toggle active status of product list"""
+    try:
+        product_list = ProductList.query.get_or_404(list_id)
+        product_list.is_active = not product_list.is_active
+        db.session.commit()
+        
+        status = 'diaktifkan' if product_list.is_active else 'dinonaktifkan'
+        flash(f'Product list "{product_list.product_name}" berhasil {status}!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error mengubah status: {str(e)}', 'danger')
+    
     return redirect(url_for('product_lists'))
 
 @app.route('/leads')
