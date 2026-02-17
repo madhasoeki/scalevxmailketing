@@ -90,7 +90,7 @@ def check_expired_leads():
                             list_id=product_list.mailketing_list_not_closing,
                             email=lead.email,
                             first_name=lead.name,
-                            phone=lead.phone
+                            mobile=lead.phone
                         )
                         
                         if result:
@@ -335,7 +335,7 @@ def test_move_to_not_closing(lead_id):
                     list_id=product_list.mailketing_list_not_closing,
                     email=lead.email,
                     first_name=lead.name,
-                    phone=lead.phone
+                    mobile=lead.phone
                 )
                 
                 print(f"Mailketing API Response: {result}")
@@ -578,7 +578,7 @@ def scalev_webhook():
                                         list_id=product_list.mailketing_list_followup,
                                         email=lead.email,
                                         first_name=lead.name,
-                                        phone=lead.phone
+                                        mobile=lead.phone
                                     )
                                     if result:
                                         lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_followup)
@@ -672,7 +672,7 @@ def scalev_webhook():
                                         list_id=product_list.mailketing_list_closing,
                                         email=lead.email,
                                         first_name=lead.name,
-                                        phone=lead.phone
+                                        mobile=lead.phone
                                     )
                                     if result:
                                         lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_closing)
