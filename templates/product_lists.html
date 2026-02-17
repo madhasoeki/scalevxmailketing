@@ -79,25 +79,14 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <!-- Toggle Active/Inactive -->
-                                <form method="POST" action="{{ url_for('toggle_product_list', list_id=list.id) }}" 
-                                      style="display: inline;">
-                                    {% if list.is_active %}
-                                    <button type="submit" class="btn btn-outline-warning" 
-                                            title="Nonaktifkan"
-                                            onclick="return confirm('Nonaktifkan product list ini?')">
-                                        <i class="bi bi-pause-circle"></i>
-                                    </button>
-                                    {% else %}
-                                    <button type="submit" class="btn btn-outline-success" 
-                                            title="Aktifkan"
-                                            onclick="return confirm('Aktifkan product list ini?')">
-                                        <i class="bi bi-play-circle"></i>
-                                    </button>
-                                    {% endif %}
-                                </form>
+                                <!-- Edit Button -->
+                                <button type="button" class="btn btn-outline-primary" 
+                                        onclick="editProductList({{ list.id }})"
+                                        title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
                                 
-                                <!-- Delete -->
+                                <!-- Delete Button -->
                                 <form method="POST" action="{{ url_for('delete_product_list', list_id=list.id) }}" 
                                       style="display: inline;">
                                     <button type="submit" class="btn btn-outline-danger" 
@@ -243,6 +232,98 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                     <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Product List</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editProductForm">
+                <input type="hidden" id="edit_list_id" name="list_id">
+                <input type="hidden" id="edit_store_id" name="store_id">
+                <input type="hidden" id="edit_store_name" name="store_name">
+                <input type="hidden" id="edit_product_id" name="product_id">
+                <input type="hidden" id="edit_product_name" name="product_name">
+                <input type="hidden" id="edit_sales_person_id" name="sales_person_id">
+                <input type="hidden" id="edit_sales_person_name" name="sales_person_name">
+                <input type="hidden" id="edit_sales_person_email" name="sales_person_email">
+                
+                <div class="modal-body">
+                    <!-- Display Store & Product (Read-only) -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3"><i class="bi bi-info-circle"></i> Informasi Product</h6>
+                        <div class="alert alert-info">
+                            <strong>Store:</strong> <span id="display_store_name"></span><br>
+                            <strong>Product:</strong> <span id="display_product_name"></span><br>
+                            <strong>Sales Person:</strong> <span id="display_sales_person"></span>
+                        </div>
+                        <small class="text-muted">Store, Product, dan Sales Person tidak bisa diubah. Hapus dan buat baru jika perlu mengubah.</small>
+                    </div>
+
+                    <!-- Edit Mailketing Lists -->
+                    <div class="mb-4">
+                        <h6 class="text-primary mb-3"><i class="bi bi-envelope"></i> Mailketing Lists</h6>
+                        
+                        <div class="mb-3">
+                            <label for="edit_mailketing_list_followup" class="form-label">
+                                List Follow Up <span class="badge bg-primary">Langsung</span>
+                            </label>
+                            {% if mailketing_lists %}
+                            <select class="form-select" id="edit_mailketing_list_followup" name="mailketing_list_followup">
+                                <option value="">-- Pilih List --</option>
+                                {% for ml in mailketing_lists %}
+                                <option value="{{ ml.list_id }}">{{ ml.list_name }} (ID: {{ ml.list_id }})</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="edit_mailketing_list_followup" name="mailketing_list_followup">
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="edit_mailketing_list_closing" class="form-label">
+                                List Closing <span class="badge bg-success">Payment</span>
+                            </label>
+                            {% if mailketing_lists %}
+                            <select class="form-select" id="edit_mailketing_list_closing" name="mailketing_list_closing">
+                                <option value="">-- Pilih List --</option>
+                                {% for ml in mailketing_lists %}
+                                <option value="{{ ml.list_id }}">{{ ml.list_name }} (ID: {{ ml.list_id }})</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="edit_mailketing_list_closing" name="mailketing_list_closing">
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="edit_mailketing_list_not_closing" class="form-label">
+                                List Not Closing <span class="badge bg-warning text-dark">7 Hari</span>
+                            </label>
+                            {% if mailketing_lists %}
+                            <select class="form-select" id="edit_mailketing_list_not_closing" name="mailketing_list_not_closing">
+                                <option value="">-- Pilih List --</option>
+                                {% for ml in mailketing_lists %}
+                                <option value="{{ ml.list_id }}">{{ ml.list_name }} (ID: {{ ml.list_id }})</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="edit_mailketing_list_not_closing" name="mailketing_list_not_closing">
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Update</button>
                 </div>
             </form>
         </div>
@@ -427,6 +508,51 @@ $(document).ready(function() {
         $('#sales_person_id, #sales_person_name, #sales_person_email').val('');
     });
 });
+
+// Edit Product List Function (outside document.ready)
+function editProductList(listId) {
+    // Fetch data via AJAX
+    $.ajax({
+        url: '/product-lists/' + listId + '/edit',
+        type: 'GET',
+        success: function(data) {
+            // Set form action
+            $('#editProductForm').attr('action', '/product-lists/' + listId + '/edit');
+            
+            // Populate hidden fields
+            $('#edit_list_id').val(data.id);
+            $('#edit_store_id').val(data.store_id);
+            $('#edit_store_name').val(data.store_name);
+            $('#edit_product_id').val(data.product_id);
+            $('#edit_product_name').val(data.product_name);
+            $('#edit_sales_person_id').val(data.sales_person_id || '');
+            $('#edit_sales_person_name').val(data.sales_person_name || '');
+            $('#edit_sales_person_email').val(data.sales_person_email || '');
+            
+            // Display store & product info
+            $('#display_store_name').text(data.store_name + ' (ID: ' + data.store_id + ')');
+            $('#display_product_name').text(data.product_name + ' (ID: ' + data.product_id + ')');
+            
+            // Display sales person
+            if (data.sales_person_name) {
+                $('#display_sales_person').html('<span class="badge bg-info">' + data.sales_person_name + '</span> (' + data.sales_person_email + ')');
+            } else {
+                $('#display_sales_person').html('<span class="badge bg-secondary">All Sales (Semua CS)</span>');
+            }
+            
+            // Set mailketing list values
+            $('#edit_mailketing_list_followup').val(data.mailketing_list_followup || '');
+            $('#edit_mailketing_list_closing').val(data.mailketing_list_closing || '');
+            $('#edit_mailketing_list_not_closing').val(data.mailketing_list_not_closing || '');
+            
+            // Show modal
+            $('#editProductModal').modal('show');
+        },
+        error: function() {
+            alert('Error loading product list data');
+        }
+    });
+}
 </script>
 {% endblock %}
 

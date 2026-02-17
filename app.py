@@ -173,17 +173,12 @@ def add_product_list():
 
 @app.route('/product-lists/<int:list_id>/delete', methods=['POST'])
 def delete_product_list(list_id):
-    """Delete product list"""
+    """Delete product list - leads akan tetap ada"""
     try:
         product_list = ProductList.query.get_or_404(list_id)
         product_name = product_list.product_name
         
-        # Check if there are leads associated
-        leads_count = Lead.query.filter_by(product_list_id=list_id).count()
-        if leads_count > 0:
-            flash(f'Tidak dapat menghapus "{product_name}" karena masih ada {leads_count} leads terkait. Hapus leads terlebih dahulu.', 'danger')
-            return redirect(url_for('product_lists'))
-        
+        # Langsung hapus tanpa cek leads
         db.session.delete(product_list)
         db.session.commit()
         
@@ -194,21 +189,53 @@ def delete_product_list(list_id):
     
     return redirect(url_for('product_lists'))
 
-@app.route('/product-lists/<int:list_id>/toggle', methods=['POST'])
-def toggle_product_list(list_id):
-    """Toggle active status of product list"""
-    try:
-        product_list = ProductList.query.get_or_404(list_id)
-        product_list.is_active = not product_list.is_active
-        db.session.commit()
-        
-        status = 'diaktifkan' if product_list.is_active else 'dinonaktifkan'
-        flash(f'Product list "{product_list.product_name}" berhasil {status}!', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error mengubah status: {str(e)}', 'danger')
+@app.route('/product-lists/<int:list_id>/edit', methods=['GET', 'POST'])
+def edit_product_list(list_id):
+    """Edit product list"""
+    product_list = ProductList.query.get_or_404(list_id)
     
-    return redirect(url_for('product_lists'))
+    if request.method == 'POST':
+        try:
+            # Update mailketing lists
+            product_list.mailketing_list_followup = request.form.get('mailketing_list_followup')
+            product_list.mailketing_list_closing = request.form.get('mailketing_list_closing')
+            product_list.mailketing_list_not_closing = request.form.get('mailketing_list_not_closing')
+            
+            # Update sales person if changed
+            sales_person_id = request.form.get('sales_person_id')
+            if sales_person_id:
+                product_list.sales_person_id = sales_person_id
+                product_list.sales_person_name = request.form.get('sales_person_name')
+                product_list.sales_person_email = request.form.get('sales_person_email')
+            else:
+                # Reset to "All Sales"
+                product_list.sales_person_id = None
+                product_list.sales_person_name = None
+                product_list.sales_person_email = None
+            
+            db.session.commit()
+            flash(f'Product list "{product_list.product_name}" berhasil diupdate!', 'success')
+            return redirect(url_for('product_lists'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error mengupdate product list: {str(e)}', 'danger')
+            return redirect(url_for('product_lists'))
+    
+    # GET: Return JSON for AJAX
+    return jsonify({
+        'id': product_list.id,
+        'store_id': product_list.store_id,
+        'store_name': product_list.store_name,
+        'product_id': product_list.product_id,
+        'product_name': product_list.product_name,
+        'sales_person_id': product_list.sales_person_id,
+        'sales_person_name': product_list.sales_person_name,
+        'sales_person_email': product_list.sales_person_email,
+        'mailketing_list_followup': product_list.mailketing_list_followup,
+        'mailketing_list_closing': product_list.mailketing_list_closing,
+        'mailketing_list_not_closing': product_list.mailketing_list_not_closing
+    })
 
 @app.route('/leads')
 def leads():
