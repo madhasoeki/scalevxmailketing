@@ -40,7 +40,7 @@ class MailketingService:
             print(f"  Error in get_all_lists: {str(e)}")
             raise
     
-    def add_subscriber(self, list_id, email, name=None, phone=None):
+    def add_subscriber(self, list_id, email, first_name=None, phone=None):
         """Add subscriber to a list"""
         # Endpoint: POST https://api.mailketing.co.id/api/v1/addsubtolist
         payload = {
@@ -49,8 +49,8 @@ class MailketingService:
             'email': email
         }
         
-        if name:
-            payload['first_name'] = name  # Use first_name, not name
+        if first_name:
+            payload['first_name'] = first_name
         
         # Note: Mailketing API might not support phone in addsubtolist
         # We'll still include it but it might be ignored
