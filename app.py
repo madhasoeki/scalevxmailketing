@@ -173,12 +173,15 @@ def add_product_list():
 
 @app.route('/product-lists/<int:list_id>/delete', methods=['POST'])
 def delete_product_list(list_id):
-    """Delete product list - leads akan tetap ada"""
+    """Delete product list - leads akan tetap ada dengan product_list_id = NULL"""
     try:
         product_list = ProductList.query.get_or_404(list_id)
         product_name = product_list.product_name
         
-        # Langsung hapus tanpa cek leads
+        # Set product_list_id menjadi NULL untuk semua leads terkait
+        Lead.query.filter_by(product_list_id=list_id).update({'product_list_id': None})
+        
+        # Hapus product list
         db.session.delete(product_list)
         db.session.commit()
         

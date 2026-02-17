@@ -38,7 +38,7 @@ class ProductList(db.Model):
 class Lead(db.Model):
     """Lead tracking"""
     id = db.Column(db.Integer, primary_key=True)
-    product_list_id = db.Column(db.Integer, db.ForeignKey('product_list.id'), nullable=False)
+    product_list_id = db.Column(db.Integer, db.ForeignKey('product_list.id'), nullable=True)
     order_id = db.Column(db.String(100), nullable=False, unique=True)
     name = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=False)
