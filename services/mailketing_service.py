@@ -11,33 +11,57 @@ class MailketingService:
         """Get all lists from Mailketing account"""
         # Endpoint: POST https://api.mailketing.co.id/api/v1/viewlist
         try:
+            print(f"\n🔍 Testing Mailketing API connection...")
+            print(f"   URL: {self.base_url}/viewlist")
+            print(f"   API Token: {self.api_token[:10]}..." if len(self.api_token) > 10 else f"   API Token: {self.api_token}")
+            
             response = requests.post(
                 f'{self.base_url}/viewlist',
                 data={'api_token': self.api_token},
                 timeout=10
             )
-            response.raise_for_status()
-            data = response.json()
             
-            print(f"Mailketing API Response: {data.get('status')}")
+            print(f"   Response Status Code: {response.status_code}")
+            print(f"   Response Text: {response.text[:200]}")  # First 200 chars
+            
+            response.raise_for_status()
+            
+            try:
+                data = response.json()
+            except ValueError as json_err:
+                print(f"❌ JSON Parse Error: {json_err}")
+                print(f"   Raw response: {response.text}")
+                raise Exception(f"Invalid JSON response from Mailketing API. Raw: {response.text[:100]}")
+            
+            print(f"   Parsed JSON: {data}")
             
             # Response format: {"status":"success","lists":[{"list_id":123,"list_name":"Name"},...]}
             if isinstance(data, dict) and data.get('status') == 'success':
                 lists = data.get('lists', [])
-                print(f"  Lists returned: {len(lists)}")
+                print(f"✅ Success! Lists returned: {len(lists)}")
                 return lists
             elif isinstance(data, dict) and data.get('status') == 'error':
-                error_msg = data.get('message', 'Unknown error')
-                print(f"  Mailketing API Error: {error_msg}")
+                error_msg = data.get('message', 'No error message provided')
+                print(f"❌ Mailketing API Error: {error_msg}")
                 raise Exception(f"Mailketing API Error: {error_msg}")
+            else:
+                print(f"⚠️  Unexpected response format: {data}")
+                raise Exception(f"Unexpected response format from Mailketing API: {data}")
             
-            print(f"  Unexpected response format: {data}")
-            return []
+        except requests.exceptions.Timeout:
+            print(f"❌ Timeout error")
+            raise Exception(f"Mailketing API timeout - server tidak merespons dalam 10 detik")
+        except requests.exceptions.ConnectionError as conn_err:
+            print(f"❌ Connection error: {conn_err}")
+            raise Exception(f"Tidak bisa connect ke Mailketing API - cek koneksi internet")
+        except requests.exceptions.HTTPError as http_err:
+            print(f"❌ HTTP error: {http_err}")
+            raise Exception(f"Mailketing API HTTP error: {http_err}")
         except requests.exceptions.RequestException as e:
-            print(f"  Network error: {str(e)}")
-            raise Exception(f"Network error connecting to Mailketing: {str(e)}")
+            print(f"❌ Network error: {str(e)}")
+            raise Exception(f"Network error: {str(e)}")
         except Exception as e:
-            print(f"  Error in get_all_lists: {str(e)}")
+            print(f"❌ Error in get_all_lists: {str(e)}")
             raise
     
     def add_subscriber(self, list_id, email, first_name=None, last_name=None, 
