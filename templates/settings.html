@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - ScaleV x Mailketing{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="mb-1">Pengaturan API</h2>
+    <p class="text-muted">Hubungkan akun ScaleV dan Mailketing Anda</p>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-key"></i> API Keys & Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <!-- ScaleV Settings -->
+                    <div class="mb-4">
+                        <h6 class="text-primary mb-3">
+                            <i class="bi bi-box-seam"></i> ScaleV API
+                        </h6>
+                        
+                        <div class="mb-3">
+                            <label for="scalev_api_key" class="form-label">API Key</label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="scalev_api_key" 
+                                    name="scalev_api_key"
+                                    value="{{ settings.scalev_api_key if settings else '' }}"
+                                    placeholder="Masukkan ScaleV API Key">
+                                <button class="btn btn-outline-secondary" type="button" id="testScalevBtn">
+                                    <i class="bi bi-check-circle"></i> Test
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">
+                                Dapatkan API key dari dashboard ScaleV Anda
+                            </small>
+                            <div id="scalevTestResult" class="mt-2"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="scalev_webhook_secret" class="form-label">Webhook Secret</label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="scalev_webhook_secret" 
+                                name="scalev_webhook_secret"
+                                value="{{ settings.scalev_webhook_secret if settings else '' }}"
+                                placeholder="Masukkan Webhook Secret">
+                            <small class="form-text text-muted">
+                                Secret key untuk memverifikasi webhook dari ScaleV
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- Mailketing Settings -->
+                    <div class="mb-4">
+                        <h6 class="text-success mb-3">
+                            <i class="bi bi-envelope"></i> Mailketing API
+                        </h6>
+                        
+                        <div class="mb-3">
+                            <label for="mailketing_api_key" class="form-label">API Key</label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="mailketing_api_key" 
+                                    name="mailketing_api_key"
+                                    value="{{ settings.mailketing_api_key if settings else '' }}"
+                                    placeholder="Masukkan Mailketing API Key">
+                                <button class="btn btn-outline-secondary" type="button" id="testMailketingBtn">
+                                    <i class="bi bi-check-circle"></i> Test
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">
+                                Dapatkan API key dari dashboard Mailketing Anda
+                            </small>
+                            <div id="mailketingTestResult" class="mt-2"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save"></i> Simpan Pengaturan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Webhook URL Info -->
+        <div class="card mb-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-link-45deg"></i> Webhook URL</h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">Gunakan URL ini untuk webhook ScaleV:</p>
+                <div class="alert alert-secondary mb-0">
+                    <code id="webhookUrl">{{ request.url_root }}webhook/scalev</code>
+                    <button class="btn btn-sm btn-link" onclick="copyWebhookUrl()">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Documentation Links -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-book"></i> Dokumentasi</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <a href="https://developers.scalev.id/docs/overview" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-arrow-right-circle"></i> ScaleV API Docs
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="https://developers.scalev.id/docs/enabling-webhooks-feature" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-arrow-right-circle"></i> ScaleV Webhooks
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="https://mailketing.co.id/docs/api-get-all-list-from-account/" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-arrow-right-circle"></i> Mailketing API Docs
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyWebhookUrl() {
+    const url = document.getElementById('webhookUrl').textContent;
+    navigator.clipboard.writeText(url).then(() => {
+        alert('URL copied to clipboard!');
+    });
+}
+
+// Test ScaleV Connection
+document.getElementById('testScalevBtn').addEventListener('click', function() {
+    const apiKey = document.getElementById('scalev_api_key').value;
+    
+    if (!apiKey) {
+        alert('Masukkan API key terlebih dahulu');
+        return;
+    }
+    
+    const resultDiv = document.getElementById('scalevTestResult');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Testing...';
+    
+    fetch('/api/test-scalev', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success alert-sm mb-0">
+                <i class="bi bi-check-circle"></i> Koneksi berhasil! Ditemukan ${data.products_count} products.
+            </div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+                <i class="bi bi-x-circle"></i> ${data.message}
+            </div>`;
+        }
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+            <i class="bi bi-x-circle"></i> Error: ${error.message}
+        </div>`;
+    });
+});
+
+// Test Mailketing Connection
+document.getElementById('testMailketingBtn').addEventListener('click', function() {
+    const apiKey = document.getElementById('mailketing_api_key').value;
+    
+    if (!apiKey) {
+        alert('Masukkan API key terlebih dahulu');
+        return;
+    }
+    
+    const resultDiv = document.getElementById('mailketingTestResult');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Testing...';
+    
+    fetch('/api/test-mailketing', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success alert-sm mb-0">
+                <i class="bi bi-check-circle"></i> Koneksi berhasil! Ditemukan ${data.lists_count} lists.
+            </div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+                <i class="bi bi-x-circle"></i> ${data.message}
+            </div>`;
+        }
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+            <i class="bi bi-x-circle"></i> Error: ${error.message}
+        </div>`;
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+
+{% block title %}Product Lists - ScaleV x Mailketing{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="mb-1">Product Lists</h2>
+        <p class="text-muted">Kelola mapping produk ke Mailketing lists</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+        <i class="bi bi-plus-lg"></i> Tambah Product
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if lists %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Store</th>
+                        <th>Produk</th>
+                        <th>Sales Person</th>
+                        <th>List Follow Up</th>
+                        <th>List Closing</th>
+                        <th>List Not Closing</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for list in lists %}
+                    <tr>
+                        <td>
+                            <strong>{{ list.store_name }}</strong><br>
+                            <small class="text-muted">ID: {{ list.store_id }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ list.product_name }}</strong><br>
+                            <small class="text-muted">ID: {{ list.product_id }}</small>
+                        </td>
+                        <td>
+                            {% if list.sales_person_name %}
+                                <span class="badge bg-info">{{ list.sales_person_name }}</span><br>
+                                <small class="text-muted">{{ list.sales_person_email }}</small>
+                            {% else %}
+                                <span class="badge bg-secondary">All Sales</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if list.mailketing_list_followup %}
+                                <span class="badge bg-primary">{{ list.mailketing_list_followup }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if list.mailketing_list_closing %}
+                                <span class="badge bg-success">{{ list.mailketing_list_closing }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if list.mailketing_list_not_closing %}
+                                <span class="badge bg-warning text-dark">{{ list.mailketing_list_not_closing }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if list.is_active %}
+                                <span class="badge bg-success">Aktif</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Tidak Aktif</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('delete_product_list', list_id=list.id) }}" 
+                                  onsubmit="return confirm('Yakin ingin menghapus product ini?')" 
+                                  style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-box fs-1"></i>
+            <p class="mt-2">Belum ada product list</p>
+            <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                <i class="bi bi-plus-lg"></i> Tambah Product Pertama
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Product Modal -->
+<div class="modal fade" id="addProductModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tambah Product List</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_product_list') }}" id="productListForm">
+                <div class="modal-body">
+                    <!-- Step 1: Store Selection -->
+                    <div class="mb-4">
+                        <h6 class="text-primary mb-3"><i class="bi bi-shop"></i> Step 1: Pilih Store</h6>
+                        <div class="mb-3">
+                            <label for="store_select" class="form-label">Store <span class="text-danger">*</span></label>
+                            <select class="form-select" id="store_select" required>
+                                <option value="">-- Pilih Store --</option>
+                            </select>
+                            <input type="hidden" id="store_id" name="store_id" required>
+                            <input type="hidden" id="store_name" name="store_name" required>
+                            <small class="form-text text-muted">
+                                <i class="bi bi-search"></i> Ketik untuk mencari store
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Product Selection -->
+                    <div class="mb-4" id="product_section" style="display: none;">
+                        <h6 class="text-primary mb-3"><i class="bi bi-box"></i> Step 2: Pilih Product</h6>
+                        <div class="mb-3">
+                            <label for="product_select" class="form-label">Product <span class="text-danger">*</span></label>
+                            <select class="form-select" id="product_select" required>
+                                <option value="">-- Pilih Product --</option>
+                            </select>
+                            <input type="hidden" id="product_id" name="product_id" required>
+                            <input type="hidden" id="product_name" name="product_name" required>
+                            <small class="form-text text-muted">
+                                <i class="bi bi-search"></i> Ketik untuk mencari product
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Sales Person Selection -->
+                    <div class="mb-4" id="sales_section" style="display: none;">
+                        <h6 class="text-primary mb-3"><i class="bi bi-person"></i> Step 3: Pilih Sales Person (Opsional)</h6>
+                        <div class="mb-3">
+                            <label for="sales_person_select" class="form-label">Sales Person</label>
+                            <select class="form-select" id="sales_person_select">
+                                <option value="" selected>All Sales (Semua CS)</option>
+                            </select>
+                            <input type="hidden" id="sales_person_id" name="sales_person_id">
+                            <input type="hidden" id="sales_person_name" name="sales_person_name">
+                            <input type="hidden" id="sales_person_email" name="sales_person_email">
+                            <small class="form-text text-muted">
+                                <i class="bi bi-info-circle"></i> Kosongkan untuk menerima order dari semua CS
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Mailketing Lists Selection -->
+                    <div class="mb-4" id="lists_section" style="display: none;">
+                        <h6 class="text-primary mb-3"><i class="bi bi-envelope"></i> Step 4: Pilih Mailketing Lists</h6>
+                        
+                        <div class="mb-3">
+                            <label for="mailketing_list_followup" class="form-label">
+                                List Follow Up <span class="badge bg-primary">Kirim Langsung</span>
+                            </label>
+                            {% if mailketing_lists %}
+                            <select class="form-select" id="mailketing_list_followup" name="mailketing_list_followup">
+                                <option value="">-- Pilih List --</option>
+                                {% for ml in mailketing_lists %}
+                                <option value="{{ ml.list_id }}">{{ ml.list_name }} (ID: {{ ml.list_id }})</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="mailketing_list_followup" name="mailketing_list_followup">
+                            {% endif %}
+                            <small class="form-text text-muted">List untuk lead baru (kirim langsung saat order dibuat)</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="mailketing_list_closing" class="form-label">
+                                List Closing <span class="badge bg-success">Saat Bayar</span>
+                            </label>
+                            {% if mailketing_lists %}
+                            <select class="form-select" id="mailketing_list_closing" name="mailketing_list_closing">
+                                <option value="">-- Pilih List --</option>
+                                {% for ml in mailketing_lists %}
+                                <option value="{{ ml.list_id }}">{{ ml.list_name }} (ID: {{ ml.list_id }})</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="mailketing_list_closing" name="mailketing_list_closing">
+                            {% endif %}
+                            <small class="form-text text-muted">List untuk lead yang sudah bayar</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="mailketing_list_not_closing" class="form-label">
+                                List Not Closing <span class="badge bg-warning text-dark">Setelah 7 Hari</span>
+                            </label>
+                            {% if mailketing_lists %}
+                            <select class="form-select" id="mailketing_list_not_closing" name="mailketing_list_not_closing">
+                                <option value="">-- Pilih List --</option>
+                                {% for ml in mailketing_lists %}
+                                <option value="{{ ml.list_id }}">{{ ml.list_name }} (ID: {{ ml.list_id }})</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="mailketing_list_not_closing" name="mailketing_list_not_closing">
+                            {% endif %}
+                            <small class="form-text text-muted">List untuk lead yang tidak closing setelah 7 hari</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize Select2 for Store dropdown
+    const storeSelect = $('#store_select').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Pilih Store --',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#addProductModal'),
+        ajax: {
+            url: '/api/scalev/stores',
+            dataType: 'json',
+            delay: 250,
+            processResults: function(data) {
+                if (data.success && data.stores) {
+                    return {
+                        results: data.stores.map(function(store) {
+                            return {
+                                id: store.id,
+                                text: store.name + ' (ID: ' + store.id + ')',
+                                name: store.name
+                            };
+                        })
+                    };
+                }
+                return { results: [] };
+            },
+            cache: true
+        }
+    });
+
+    // Initialize Select2 for Product dropdown
+    const productSelect = $('#product_select').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Pilih Product --',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#addProductModal')
+    });
+
+    // Initialize Select2 for Sales Person dropdown
+    const salesSelect = $('#sales_person_select').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'All Sales (Semua CS)',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#addProductModal')
+    });
+
+    // Initialize Select2 for Mailketing Lists
+    {% if mailketing_lists %}
+    $('#mailketing_list_followup, #mailketing_list_closing, #mailketing_list_not_closing').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Pilih List --',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#addProductModal')
+    });
+    {% endif %}
+
+    // Handle Store selection
+    storeSelect.on('select2:select', function(e) {
+        const storeData = e.params.data;
+        const storeId = storeData.id;
+        const storeName = storeData.name;
+
+        // Set hidden fields
+        $('#store_id').val(storeId);
+        $('#store_name').val(storeName);
+
+        // Show product section
+        $('#product_section').show();
+
+        // Load products for this store
+        loadProducts(storeId);
+
+        // Show sales section
+        $('#sales_section').show();
+
+        // Load sales people for this store
+        loadSalesPeople(storeId);
+
+        // Show lists section
+        $('#lists_section').show();
+    });
+
+    // Handle Product selection
+    productSelect.on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        if (selectedOption.val()) {
+            $('#product_id').val(selectedOption.val());
+            $('#product_name').val(selectedOption.attr('data-name'));
+        }
+    });
+
+    // Handle Sales Person selection
+    salesSelect.on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        if (selectedOption.val()) {
+            $('#sales_person_id').val(selectedOption.val());
+            $('#sales_person_name').val(selectedOption.attr('data-name'));
+            $('#sales_person_email').val(selectedOption.attr('data-email'));
+        } else {
+            $('#sales_person_id').val('');
+            $('#sales_person_name').val('');
+            $('#sales_person_email').val('');
+        }
+    });
+
+    // Function to load products by store
+    function loadProducts(storeId) {
+        productSelect.html('<option value="">Loading...</option>');
+        
+        $.ajax({
+            url: '/api/scalev/stores/' + storeId + '/products',
+            method: 'GET',
+            success: function(data) {
+                if (data.success && data.products) {
+                    let options = '<option value="">-- Pilih Product --</option>';
+                    data.products.forEach(function(product) {
+                        options += '<option value="' + product.id + '" data-name="' + product.name + '">' + 
+                                   product.name + ' (ID: ' + product.id + ')</option>';
+                    });
+                    productSelect.html(options);
+                } else {
+                    productSelect.html('<option value="">Tidak ada product</option>');
+                }
+            },
+            error: function() {
+                productSelect.html('<option value="">Error loading products</option>');
+            }
+        });
+    }
+
+    // Function to load sales people by store
+    function loadSalesPeople(storeId) {
+        salesSelect.html('<option value="" selected>All Sales (Semua CS)</option>');
+        
+        $.ajax({
+            url: '/api/scalev/stores/' + storeId + '/sales-people',
+            method: 'GET',
+            success: function(data) {
+                if (data.success && data.sales_people) {
+                    let options = '<option value="" selected>All Sales (Semua CS)</option>';
+                    data.sales_people.forEach(function(sales) {
+                        const user = sales.business_user.user;
+                        options += '<option value="' + user.id + '" ' +
+                                   'data-name="' + user.fullname + '" ' +
+                                   'data-email="' + user.email + '">' + 
+                                   user.fullname + ' (' + user.email + ')</option>';
+                    });
+                    salesSelect.html(options);
+                } else {
+                    salesSelect.html('<option value="" selected>All Sales (Semua CS)</option>');
+                }
+            },
+            error: function() {
+                salesSelect.html('<option value="" selected>All Sales (Semua CS)</option>');
+            }
+        });
+    }
+
+    // Reset form when modal is closed
+    $('#addProductModal').on('hidden.bs.modal', function() {
+        $('#productListForm')[0].reset();
+        storeSelect.val(null).trigger('change');
+        productSelect.val(null).trigger('change');
+        salesSelect.val(null).trigger('change');
+        {% if mailketing_lists %}
+        $('#mailketing_list_followup, #mailketing_list_closing, #mailketing_list_not_closing').val(null).trigger('change');
+        {% endif %}
+        $('#product_section, #sales_section, #lists_section').hide();
+        $('#store_id, #store_name, #product_id, #product_name').val('');
+        $('#sales_person_id, #sales_person_name, #sales_person_email').val('');
+    });
+});
+</script>
+{% endblock %}
+

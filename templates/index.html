@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - ScaleV x Mailketing{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="mb-1">Dashboard</h2>
+    <p class="text-muted">Overview statistik leads Anda</p>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card follow-up">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Follow Up</p>
+                        <h3 class="mb-0">{{ stats.follow_up }}</h3>
+                    </div>
+                    <div class="fs-1 text-warning">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card closing">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Closing</p>
+                        <h3 class="mb-0">{{ stats.closing }}</h3>
+                    </div>
+                    <div class="fs-1 text-success">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card not-closing">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Tidak Closing</p>
+                        <h3 class="mb-0">{{ stats.not_closing }}</h3>
+                    </div>
+                    <div class="fs-1 text-danger">
+                        <i class="bi bi-x-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card total">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Total Leads</p>
+                        <h3 class="mb-0">{{ stats.total }}</h3>
+                    </div>
+                    <div class="fs-1 text-primary">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Leads -->
+<div class="card">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Leads Terbaru</h5>
+    </div>
+    <div class="card-body">
+        {% if recent_leads %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nama</th>
+                        <th>Email</th>
+                        <th>Produk</th>
+                        <th>Status</th>
+                        <th>Tanggal</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in recent_leads %}
+                    <tr>
+                        <td>{{ lead.name }}</td>
+                        <td>{{ lead.email }}</td>
+                        <td>{{ lead.product_list.product_name }}</td>
+                        <td>
+                            {% if lead.status == 'follow_up' %}
+                                <span class="badge bg-warning text-dark badge-status">Follow Up ({{ lead.days_in_follow_up() }}d)</span>
+                            {% elif lead.status == 'closing' %}
+                                <span class="badge bg-success badge-status">Closing</span>
+                            {% elif lead.status == 'not_closing' %}
+                                <span class="badge bg-danger badge-status">Tidak Closing</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ lead.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>
+                            <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-inbox fs-1"></i>
+            <p class="mt-2">Belum ada leads</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Lead Detail - {{ lead.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('leads') }}">Leads</a></li>
+            <li class="breadcrumb-item active">{{ lead.name }}</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <!-- Lead Info -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-person"></i> Informasi Lead</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Nama</label>
+                        <p class="mb-0"><strong>{{ lead.name }}</strong></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Email</label>
+                        <p class="mb-0">{{ lead.email }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Telepon</label>
+                        <p class="mb-0">{{ lead.phone or '-' }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Order ID</label>
+                        <p class="mb-0"><code>{{ lead.order_id }}</code></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Produk</label>
+                        <p class="mb-0">{{ lead.product_list.product_name }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Status</label>
+                        <p class="mb-0">
+                            {% if lead.status == 'follow_up' %}
+                                <span class="badge bg-warning text-dark badge-status">
+                                    Follow Up ({{ lead.days_in_follow_up() }} hari)
+                                </span>
+                            {% elif lead.status == 'closing' %}
+                                <span class="badge bg-success badge-status">Closing</span>
+                            {% elif lead.status == 'not_closing' %}
+                                <span class="badge bg-danger badge-status">Tidak Closing</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Tanggal Dibuat</label>
+                        <p class="mb-0">{{ lead.created_at.strftime('%d %B %Y, %H:%M') }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Terakhir Update</label>
+                        <p class="mb-0">{{ lead.updated_at.strftime('%d %B %Y, %H:%M') }}</p>
+                    </div>
+                </div>
+                
+                {% if lead.order_data %}
+                <hr>
+                <div>
+                    <label class="text-muted small">Order Data</label>
+                    <pre class="bg-light p-3 rounded"><code>{{ lead.order_data }}</code></pre>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- History -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Riwayat Status</h5>
+            </div>
+            <div class="card-body">
+                {% if history %}
+                <div class="timeline">
+                    {% for item in history %}
+                    <div class="timeline-item mb-3 pb-3 border-bottom">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                {% if item.to_status == 'follow_up' %}
+                                    <div class="badge bg-warning text-dark">
+                                        <i class="bi bi-hourglass-split"></i>
+                                    </div>
+                                {% elif item.to_status == 'closing' %}
+                                    <div class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i>
+                                    </div>
+                                {% elif item.to_status == 'not_closing' %}
+                                    <div class="badge bg-danger">
+                                        <i class="bi bi-x-circle"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <strong>
+                                        {% if item.from_status %}
+                                            {{ item.from_status|replace('_', ' ')|title }} → {{ item.to_status|replace('_', ' ')|title }}
+                                        {% else %}
+                                            Lead dibuat: {{ item.to_status|replace('_', ' ')|title }}
+                                        {% endif %}
+                                    </strong>
+                                    <small class="text-muted">
+                                        {{ item.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                    </small>
+                                </div>
+                                {% if item.notes %}
+                                <p class="mb-0 text-muted">{{ item.notes }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">Belum ada riwayat</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Quick Info</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-calendar-check"></i> 
+                        <strong>Follow Up Start:</strong><br>
+                        <small>{{ lead.follow_up_start.strftime('%d/%m/%Y %H:%M') }}</small>
+                    </li>
+                    {% if lead.closed_at %}
+                    <li class="mb-2">
+                        <i class="bi bi-calendar-check-fill"></i> 
+                        <strong>Closed At:</strong><br>
+                        <small>{{ lead.closed_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                    </li>
+                    {% endif %}
+                    {% if lead.sent_to_mailketing %}
+                    <li class="mb-2">
+                        <i class="bi bi-envelope-check"></i> 
+                        <strong>Sent to Mailketing:</strong><br>
+                        <small>{{ lead.sent_to_mailketing_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        
+        {% if lead.product_list.mailketing_list_id %}
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-envelope"></i> Mailketing</h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">Mailketing List ID:</p>
+                <p class="mb-0"><code>{{ lead.product_list.mailketing_list_id }}</code></p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
