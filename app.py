@@ -925,21 +925,25 @@ if __name__ == '__main__':
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
 
-# Auto-run migration on first import (for WSGI servers like gunicorn/uwsgi)
-# This ensures migration runs even when app is imported, not executed directly
-@app.before_first_request
+# Auto-run migration on first request (Flask 3.0 compatible)
+_migration_done = False
+
+@app.before_request
 def run_migrations():
-    """Run database migrations before first request"""
-    try:
-        # Ensure all tables are created first
-        db.create_all()
-        
-        # Then run migrations for new columns
-        from migrate_database import migrate
-        print("\n🔄 [First Request] Running database migration...")
-        migrate()
-        print("✅ [First Request] Migration check completed\n")
-    except Exception as e:
-        print(f"⚠️  [First Request] Migration failed: {str(e)}")
-        import traceback
-        traceback.print_exc()
+    """Run database migrations before first request (Flask 3.0 compatible)"""
+    global _migration_done
+    if not _migration_done:
+        _migration_done = True
+        try:
+            # Ensure all tables are created first
+            db.create_all()
+            
+            # Then run migrations for new columns
+            from migrate_database import migrate
+            print("\n🔄 [First Request] Running database migration...")
+            migrate()
+            print("✅ [First Request] Migration check completed\n")
+        except Exception as e:
+            print(f"⚠️  [First Request] Migration failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
