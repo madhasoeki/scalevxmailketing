@@ -698,19 +698,45 @@ def scalev_webhook():
             print(f"  - SKU: {variant_sku if variant_sku else 'Not available'}")
             print(f"  - Variant ID: {variant_unique_id}")
             
-            # Extract handler data from webhook FIRST (before product matching)
-            handler_data = data.get('handler', {})
+            # Get handler from ScaleV API (webhook payload doesn't have handler info)
+            print(f"\n🔍 Fetching order details from ScaleV API...")
             handler_email = None
             handler_name = None
             handler_id = None
             
-            if handler_data:
-                handler_email = handler_data.get('email')
-                handler_name = handler_data.get('fullname')
-                handler_id = handler_data.get('unique_id') or handler_data.get('id')
-                print(f"\n👤 Webhook Handler: {handler_name} ({handler_email}, ID: {handler_id})")
-            else:
-                print(f"\n⚠️  No handler data in webhook")
+            try:
+                settings_obj = Settings.query.first()
+                if not settings_obj or not settings_obj.scalev_api_key:
+                    print(f"❌ ScaleV API key not configured")
+                    return jsonify({'success': False, 'error': 'ScaleV API key not configured'}), 500
+                
+                import requests
+                api_url = f"https://api.scalev.id/v2/order/{order_id}"
+                headers = {
+                    'Authorization': f'Bearer {settings_obj.scalev_api_key}',
+                    'Content-Type': 'application/json'
+                }
+                
+                response = requests.get(api_url, headers=headers, timeout=10)
+                
+                if response.status_code == 200:
+                    order_detail = response.json()
+                    handler_data = order_detail.get('data', {}).get('handler', {})
+                    
+                    if handler_data:
+                        handler_email = handler_data.get('email')
+                        handler_name = handler_data.get('fullname')
+                        handler_id = str(handler_data.get('id', ''))
+                        print(f"✓ Got handler from API: {handler_name} ({handler_email}, ID: {handler_id})")
+                    else:
+                        print(f"⚠️  No handler data in API response")
+                else:
+                    print(f"⚠️  API request failed: {response.status_code}")
+                    print(f"   Response: {response.text[:200]}")
+            except Exception as e:
+                print(f"❌ Error calling ScaleV API: {str(e)}")
+                # Continue without handler info
+                pass
             
             # Try to match product list by SKU, product name, or variant_unique_id
             # IMPORTANT: Can have MULTIPLE lists with same product but different CS

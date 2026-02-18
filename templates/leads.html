@@ -94,7 +94,7 @@
         <!-- Results Info -->
         <div class="mb-3 text-muted">
             <small>
-                Menampilkan {{ ((pagination.page - 1) * 20) + 1 }} - {{ min(pagination.page * 20, pagination.total) }} 
+                Menampilkan {{ ((pagination.page - 1) * 20) + 1 }} - {{ pagination.page * 20 if pagination.page * 20 < pagination.total else pagination.total }} 
                 dari {{ pagination.total }} leads
             </small>
         </div>
