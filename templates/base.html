@@ -107,6 +107,36 @@
         .select2-container--bootstrap-5 .select2-results__option--highlighted {
             background-color: #667eea;
         }
+        
+        .user-info {
+            color: rgba(255, 255, 255, 0.9);
+            padding: 15px 20px;
+            margin: 20px 15px 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .user-info .user-email {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+        
+        .logout-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+            padding: 12px 20px;
+            margin: 5px 15px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            display: block;
+            text-decoration: none;
+        }
+        
+        .logout-link:hover {
+            color: #fff !important;
+            background: rgba(255, 100, 100, 0.3);
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -118,6 +148,11 @@
             <div class="col-md-2 sidebar">
                 <div class="brand">
                     <i class="bi bi-box-seam"></i> ScaleV x Mail
+                </div>
+                
+                <div class="user-info">
+                    <div><i class="bi bi-person-circle"></i> <strong>Admin</strong></div>
+                    <div class="user-email">{{ current_user.email }}</div>
                 </div>
                 
                 <nav class="nav flex-column">
@@ -132,6 +167,12 @@
                     </a>
                     <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">
                         <i class="bi bi-gear"></i> Settings
+                    </a>
+                    
+                    <hr style="border-color: rgba(255, 255, 255, 0.2); margin: 20px 15px;">
+                    
+                    <a class="logout-link" href="{{ url_for('logout') }}">
+                        <i class="bi bi-box-arrow-right"></i> Logout
                     </a>
                 </nav>
             </div>

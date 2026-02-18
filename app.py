@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 import pytz
@@ -11,6 +12,28 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///scalevxmailketing.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Flask-Login setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Silakan login untuk mengakses halaman ini.'
+login_manager.login_message_category = 'warning'
+
+# Hardcoded user credentials
+ADMIN_EMAIL = 'madhasoeki@gmail.com'
+ADMIN_PASSWORD = 'xferlog812'
+
+class User(UserMixin):
+    def __init__(self, id, email):
+        self.id = id
+        self.email = email
+
+@login_manager.user_loader
+def load_user(user_id):
+    if user_id == '1':
+        return User(id='1', email=ADMIN_EMAIL)
+    return None
 
 # Timezone Configuration (WIB = UTC+7)
 WIB = pytz.timezone('Asia/Jakarta')
@@ -108,8 +131,43 @@ def check_expired_leads():
                 traceback.print_exc()
 
 
-# Routes
+# Authentication Routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
+            user = User(id='1', email=ADMIN_EMAIL)
+            login_user(user, remember=True)
+            flash('Login berhasil! Selamat datang.', 'success')
+            
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
+            return redirect(url_for('index'))
+        else:
+            flash('Email atau password salah!', 'danger')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Logout user"""
+    logout_user()
+    flash('Anda telah logout.', 'info')
+    return redirect(url_for('login'))
+
+
+# Main Routes
 @app.route('/')
+@login_required
 def index():
     """Dashboard home"""
     stats = {
@@ -122,6 +180,7 @@ def index():
     return render_template('index.html', stats=stats, recent_leads=recent_leads)
 
 @app.route('/settings', methods=['GET', 'POST'])
+@login_required
 def settings():
     """API Settings page"""
     settings_obj = Settings.query.first()
@@ -147,6 +206,7 @@ def settings():
     return render_template('settings.html', settings=settings_obj)
 
 @app.route('/product-lists')
+@login_required
 def product_lists():
     """Product lists management"""
     lists = ProductList.query.all()
@@ -173,6 +233,7 @@ def product_lists():
 
 
 @app.route('/product-lists/add', methods=['POST'])
+@login_required
 def add_product_list():
     """Add new product list"""
     store_id = request.form.get('store_id')
@@ -210,6 +271,7 @@ def add_product_list():
     return redirect(url_for('product_lists'))
 
 @app.route('/product-lists/<int:list_id>/delete', methods=['POST'])
+@login_required
 def delete_product_list(list_id):
     """Delete product list - leads akan tetap ada dengan product_list_id = NULL"""
     try:
@@ -231,6 +293,7 @@ def delete_product_list(list_id):
     return redirect(url_for('product_lists'))
 
 @app.route('/product-lists/<int:list_id>/edit', methods=['GET', 'POST'])
+@login_required
 def edit_product_list(list_id):
     """Edit product list"""
     product_list = ProductList.query.get_or_404(list_id)
@@ -279,6 +342,7 @@ def edit_product_list(list_id):
     })
 
 @app.route('/leads')
+@login_required
 def leads():
     """Leads management"""
     status_filter = request.args.get('status', 'all')
@@ -293,6 +357,7 @@ def leads():
     return render_template('leads.html', leads=leads_list, status_filter=status_filter)
 
 @app.route('/leads/<int:lead_id>')
+@login_required
 def lead_detail(lead_id):
     """Lead detail page"""
     lead = Lead.query.get_or_404(lead_id)
@@ -301,6 +366,7 @@ def lead_detail(lead_id):
     return render_template('lead_detail.html', lead=lead, history=history)
 
 @app.route('/leads/<int:lead_id>/test-not-closing', methods=['POST'])
+@login_required
 def test_move_to_not_closing(lead_id):
     """Test endpoint: Force move lead to not_closing and send to Mailketing"""
     lead = Lead.query.get_or_404(lead_id)
@@ -719,6 +785,7 @@ def scalev_webhook():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/test-mailketing', methods=['POST'])
+@login_required
 def test_mailketing():
     """Test Mailketing API connection"""
     settings_obj = Settings.query.first()
@@ -734,6 +801,7 @@ def test_mailketing():
         return jsonify({'success': False, 'message': str(e)}), 400
 
 @app.route('/api/test-scalev', methods=['POST'])
+@login_required
 def test_scalev():
     """Test ScaleV API connection"""
     settings_obj = Settings.query.first()
@@ -749,6 +817,7 @@ def test_scalev():
         return jsonify({'success': False, 'message': str(e)}), 400
 
 @app.route('/api/scalev/stores', methods=['GET'])
+@login_required
 def get_scalev_stores():
     """Get all ScaleV stores with optional search"""
     settings_obj = Settings.query.first()
@@ -770,6 +839,7 @@ def get_scalev_stores():
         return jsonify({'success': False, 'message': str(e)}), 400
 
 @app.route('/api/scalev/stores/<store_id>/products', methods=['GET'])
+@login_required
 def get_scalev_store_products(store_id):
     """Get products from a specific store"""
     settings_obj = Settings.query.first()
@@ -785,6 +855,7 @@ def get_scalev_store_products(store_id):
         return jsonify({'success': False, 'message': str(e)}), 400
 
 @app.route('/api/scalev/stores/<store_id>/sales-people', methods=['GET'])
+@login_required
 def get_scalev_store_sales_people(store_id):
     """Get sales people from a specific store"""
     settings_obj = Settings.query.first()
