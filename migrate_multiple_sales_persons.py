@@ -5,11 +5,29 @@ Run this ONCE after deploying the new code.
 
 import sqlite3
 import json
+import os
+import sys
 
 def migrate():
     """Migrate sales person fields from single to multiple (JSON arrays)"""
     
-    conn = sqlite3.connect('scalevxmailketing.db')
+    # Check if database file exists
+    db_path = 'scalevxmailketing.db'
+    if not os.path.exists(db_path):
+        print("=" * 60)
+        print("❌ ERROR: Database file not found!")
+        print("=" * 60)
+        print("\nDatabase belum dibuat. Silakan jalankan aplikasi terlebih dahulu:")
+        print("\n  python app.py")
+        print("\nAplikasi akan otomatis membuat database dan tables.")
+        print("Setelah itu, jalankan migration ini lagi.")
+        print("\nAtau jika aplikasi sudah running di background/service,")
+        print("pastikan database file ada di direktori yang sama dengan")
+        print("migration script ini.")
+        print("=" * 60)
+        sys.exit(1)
+    
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     print("=" * 60)
@@ -17,6 +35,21 @@ def migrate():
     print("=" * 60)
     
     try:
+        # Check if table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='product_list'")
+        table_exists = cursor.fetchone()
+        
+        if not table_exists:
+            print("\n❌ ERROR: Table 'product_list' belum ada!")
+            print("\nDatabase ada tapi table belum dibuat.")
+            print("Silakan jalankan aplikasi terlebih dahulu:")
+            print("\n  python app.py")
+            print("\nAplikasi akan otomatis membuat semua tables yang diperlukan.")
+            print("Setelah itu, stop aplikasi dan jalankan migration ini lagi.")
+            print("=" * 60)
+            conn.close()
+            sys.exit(1)
+        
         # Check if old columns exist
         cursor.execute("PRAGMA table_info(product_list)")
         columns = [col[1] for col in cursor.fetchall()]
@@ -26,10 +59,11 @@ def migrate():
         
         if not has_old_columns and has_new_columns:
             print("✓ Migration already completed. New columns exist.")
+            print("=" * 60)
             return
         
         if not has_old_columns and not has_new_columns:
-            print("✓ Fresh database. Adding new columns...")
+            print("\n✓ Fresh database detected. Adding new columns...")
             cursor.execute('''
                 ALTER TABLE product_list 
                 ADD COLUMN sales_person_ids TEXT
@@ -44,6 +78,9 @@ def migrate():
             ''')
             conn.commit()
             print("✓ New columns added successfully!")
+            print("\n" + "=" * 60)
+            print("MIGRATION COMPLETED SUCCESSFULLY!")
+            print("=" * 60)
             return
         
         # Migration needed - old columns exist

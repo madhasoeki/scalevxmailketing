@@ -41,6 +41,11 @@ def migrate():
                 ("ALTER TABLE product_list ADD COLUMN mailketing_list_closing VARCHAR(100)", "Add mailketing_list_closing to product_list"),
                 ("ALTER TABLE product_list ADD COLUMN mailketing_list_not_closing VARCHAR(100)", "Add mailketing_list_not_closing to product_list"),
                 
+                # Multiple Sales Persons support (JSON arrays)
+                ("ALTER TABLE product_list ADD COLUMN sales_person_ids TEXT", "Add sales_person_ids (JSON) to product_list"),
+                ("ALTER TABLE product_list ADD COLUMN sales_person_names TEXT", "Add sales_person_names (JSON) to product_list"),
+                ("ALTER TABLE product_list ADD COLUMN sales_person_emails TEXT", "Add sales_person_emails (JSON) to product_list"),
+                
                 # Lead table migrations
                 ("ALTER TABLE lead ADD COLUMN sales_person_name VARCHAR(255)", "Add sales_person_name to lead"),
                 ("ALTER TABLE lead ADD COLUMN sales_person_email VARCHAR(255)", "Add sales_person_email to lead"),
@@ -83,9 +88,52 @@ def migrate():
                 if rows_updated > 0:
                     print(f"  ✓ Migrated {rows_updated} product lists: mailketing_list_id → mailketing_list_closing")
                 else:
-                    print(f"  ⊘ No data to migrate")
+                    print(f"  ⊘ No data to migrate (mailketing_list_id)")
             except Exception as e:
                 print(f"  ⚠ Warning during data migration: {str(e)}")
+            
+            # Migrate single sales person to multiple sales persons (JSON arrays)
+            try:
+                import json
+                # Get all product lists with old sales person data but no new data
+                result = connection.execute(text("""
+                    SELECT id, sales_person_id, sales_person_name, sales_person_email
+                    FROM product_list
+                    WHERE sales_person_id IS NOT NULL 
+                    AND (sales_person_ids IS NULL OR sales_person_ids = '')
+                """))
+                
+                rows_to_migrate = result.fetchall()
+                migrated_count = 0
+                
+                for row in rows_to_migrate:
+                    pl_id = row[0]
+                    sp_id = row[1]
+                    sp_name = row[2]
+                    sp_email = row[3]
+                    
+                    # Convert to JSON arrays
+                    ids_json = json.dumps([sp_id])
+                    names_json = json.dumps([sp_name]) if sp_name else None
+                    emails_json = json.dumps([sp_email]) if sp_email else None
+                    
+                    # Update the record
+                    connection.execute(text("""
+                        UPDATE product_list
+                        SET sales_person_ids = :ids,
+                            sales_person_names = :names,
+                            sales_person_emails = :emails
+                        WHERE id = :id
+                    """), {"ids": ids_json, "names": names_json, "emails": emails_json, "id": pl_id})
+                    migrated_count += 1
+                
+                if migrated_count > 0:
+                    connection.commit()
+                    print(f"  ✓ Migrated {migrated_count} product lists: single sales person → multiple sales persons (JSON)")
+                else:
+                    print(f"  ⊘ No data to migrate (single → multiple sales persons)")
+            except Exception as e:
+                print(f"  ⚠ Warning during sales person migration: {str(e)}")
             
             connection.close()
             
