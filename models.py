@@ -44,7 +44,8 @@ class ProductList(db.Model):
     
     def get_sales_person_ids_list(self):
         """Get sales person IDs as list"""
-        if not self.sales_person_ids:
+        # Check if attribute exists (for backward compatibility before migration)
+        if not hasattr(self, 'sales_person_ids') or not self.sales_person_ids:
             return []
         try:
             return json.loads(self.sales_person_ids)
@@ -53,7 +54,8 @@ class ProductList(db.Model):
     
     def get_sales_person_names_list(self):
         """Get sales person names as list"""
-        if not self.sales_person_names:
+        # Check if attribute exists (for backward compatibility before migration)
+        if not hasattr(self, 'sales_person_names') or not self.sales_person_names:
             return []
         try:
             return json.loads(self.sales_person_names)
@@ -62,7 +64,8 @@ class ProductList(db.Model):
     
     def get_sales_person_emails_list(self):
         """Get sales person emails as list"""
-        if not self.sales_person_emails:
+        # Check if attribute exists (for backward compatibility before migration)
+        if not hasattr(self, 'sales_person_emails') or not self.sales_person_emails:
             return []
         try:
             return json.loads(self.sales_person_emails)
@@ -71,19 +74,27 @@ class ProductList(db.Model):
     
     def set_sales_persons(self, ids, names, emails):
         """Set sales persons from lists"""
-        self.sales_person_ids = json.dumps(ids) if ids else None
-        self.sales_person_names = json.dumps(names) if names else None
-        self.sales_person_emails = json.dumps(emails) if emails else None
+        # Check if attributes exist (for backward compatibility)
+        if hasattr(self, 'sales_person_ids'):
+            self.sales_person_ids = json.dumps(ids) if ids else None
+        if hasattr(self, 'sales_person_names'):
+            self.sales_person_names = json.dumps(names) if names else None
+        if hasattr(self, 'sales_person_emails'):
+            self.sales_person_emails = json.dumps(emails) if emails else None
     
     def is_for_all_sales(self):
         """Check if this list is for all sales persons"""
+        # Backward compatibility: if new fields don't exist, check old field
+        if not hasattr(self, 'sales_person_ids'):
+            return not hasattr(self, 'sales_person_id') or not self.sales_person_id
         return not self.sales_person_ids or len(self.get_sales_person_ids_list()) == 0
     
     def is_sales_person_included(self, sales_person_id):
         """Check if a sales person ID is included in this list"""
         if self.is_for_all_sales():
             return True
-        return sales_person_id in self.get_sales_person_ids_list()
+        ids = self.get_sales_person_ids_list()
+        return sales_person_id in ids
     
     def get_sales_person_display(self):
         """Get display text for sales persons"""
