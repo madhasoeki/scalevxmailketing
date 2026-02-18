@@ -44,17 +44,19 @@
         </h6>
         <form method="GET" action="{{ url_for('leads') }}" id="filterForm">
             <input type="hidden" name="status" value="{{ status_filter }}">
+            <input type="hidden" name="date_from" id="hiddenDateFrom" value="{{ date_from }}">
+            <input type="hidden" name="date_to" id="hiddenDateTo" value="{{ date_to }}">
             <div class="row g-3">
-                <div class="col-md-3">
-                    <label for="dateFrom" class="form-label">Dari Tanggal</label>
-                    <input type="date" class="form-control" id="dateFrom" name="date_from" value="{{ date_from }}">
+                <div class="col-md-4">
+                    <label for="dateRange" class="form-label">
+                        <i class="bi bi-calendar-range"></i> Rentang Tanggal
+                    </label>
+                    <input type="text" class="form-control" id="dateRange" placeholder="Pilih rentang tanggal" readonly>
                 </div>
-                <div class="col-md-3">
-                    <label for="dateTo" class="form-label">Sampai Tanggal</label>
-                    <input type="date" class="form-control" id="dateTo" name="date_to" value="{{ date_to }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="salesPerson" class="form-label">Customer Service</label>
+                <div class="col-md-4">
+                    <label for="salesPerson" class="form-label">
+                        <i class="bi bi-person"></i> Customer Service
+                    </label>
                     <select class="form-select" id="salesPerson" name="sales_person">
                         <option value="">Semua CS</option>
                         {% for sp in unique_sales_people %}
@@ -64,8 +66,10 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label for="product" class="form-label">Produk</label>
+                <div class="col-md-4">
+                    <label for="product" class="form-label">
+                        <i class="bi bi-box"></i> Produk
+                    </label>
                     <select class="form-select" id="product" name="product">
                         <option value="">Semua Produk</option>
                         {% for prod in unique_products %}
@@ -223,4 +227,69 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize daterangepicker
+    var start = moment('{{ date_from }}', 'YYYY-MM-DD');
+    var end = moment('{{ date_to }}', 'YYYY-MM-DD');
+    
+    // Set initial display text
+    function updateDateRangeDisplay(start, end) {
+        if (start.isValid() && end.isValid()) {
+            $('#dateRange').val(start.format('DD/MM/YYYY') + ' - ' + end.format('DD/MM/YYYY'));
+        }
+    }
+    
+    // Update display if there are existing dates
+    if ('{{ date_from }}' && '{{ date_to }}') {
+        updateDateRangeDisplay(start, end);
+    }
+    
+    // Initialize daterangepicker
+    $('#dateRange').daterangepicker({
+        autoUpdateInput: false,
+        locale: {
+            format: 'DD/MM/YYYY',
+            separator: ' - ',
+            applyLabel: 'Terapkan',
+            cancelLabel: 'Batal',
+            fromLabel: 'Dari',
+            toLabel: 'Sampai',
+            customRangeLabel: 'Kustom',
+            weekLabel: 'M',
+            daysOfWeek: ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'],
+            monthNames: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
+            firstDay: 1
+        },
+        ranges: {
+            'Hari Ini': [moment(), moment()],
+            'Kemarin': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+            '7 Hari Terakhir': [moment().subtract(6, 'days'), moment()],
+            '30 Hari Terakhir': [moment().subtract(29, 'days'), moment()],
+            'Bulan Ini': [moment().startOf('month'), moment().endOf('month')],
+            'Bulan Lalu': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        },
+        startDate: start.isValid() ? start : undefined,
+        endDate: end.isValid() ? end : undefined
+    });
+    
+    // Update hidden inputs when date range is applied
+    $('#dateRange').on('apply.daterangepicker', function(ev, picker) {
+        $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
+        $('#hiddenDateFrom').val(picker.startDate.format('YYYY-MM-DD'));
+        $('#hiddenDateTo').val(picker.endDate.format('YYYY-MM-DD'));
+    });
+    
+    // Clear hidden inputs when date range is cancelled
+    $('#dateRange').on('cancel.daterangepicker', function(ev, picker) {
+        $(this).val('');
+        $('#hiddenDateFrom').val('');
+        $('#hiddenDateTo').val('');
+    });
+});
+</script>
 {% endblock %}
