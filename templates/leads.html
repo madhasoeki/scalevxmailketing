@@ -46,14 +46,14 @@
             <input type="hidden" name="status" value="{{ status_filter }}">
             <input type="hidden" name="date_from" id="hiddenDateFrom" value="{{ date_from }}">
             <input type="hidden" name="date_to" id="hiddenDateTo" value="{{ date_to }}">
-            <div class="row g-3">
-                <div class="col-md-4">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
                     <label for="dateRange" class="form-label">
                         <i class="bi bi-calendar-range"></i> Rentang Tanggal
                     </label>
                     <input type="text" class="form-control" id="dateRange" placeholder="Pilih rentang tanggal" readonly>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="salesPerson" class="form-label">
                         <i class="bi bi-person"></i> Customer Service
                     </label>
@@ -66,7 +66,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="product" class="form-label">
                         <i class="bi bi-box"></i> Produk
                     </label>
@@ -79,14 +79,15 @@
                         {% endfor %}
                     </select>
                 </div>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-search"></i> Filter
-                </button>
-                <a href="{{ url_for('leads', status=status_filter) }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-x-circle"></i> Reset
-                </a>
+                <div class="col-md-3">
+                    <label class="form-label d-block">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-search"></i> Filter
+                    </button>
+                    <a href="{{ url_for('leads', status=status_filter) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Reset
+                    </a>
+                </div>
             </div>
         </form>
     </div>
@@ -251,6 +252,8 @@ $(document).ready(function() {
     // Initialize daterangepicker
     $('#dateRange').daterangepicker({
         autoUpdateInput: false,
+        alwaysShowCalendars: true,
+        opens: 'left',
         locale: {
             format: 'DD/MM/YYYY',
             separator: ' - ',
