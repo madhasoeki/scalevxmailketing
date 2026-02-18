@@ -443,19 +443,31 @@ def leads():
     print(f"📄 Page {page}: Showing {len(leads_list)} leads\n")
     
     # Get unique products and sales people from existing leads for filter dropdowns
-    unique_products = db.session.query(
+    # Use subquery to get product_list_ids that have leads, then get their names
+    # This handles NULL product_list_id gracefully
+    unique_products_query = db.session.query(
         ProductList.product_name
-    ).join(Lead).distinct().order_by(ProductList.product_name).all()
-    unique_products = [p[0] for p in unique_products if p[0]]
+    ).join(
+        Lead, Lead.product_list_id == ProductList.id
+    ).filter(
+        Lead.product_list_id.isnot(None)
+    ).distinct().order_by(ProductList.product_name).all()
+    unique_products = [p[0] for p in unique_products_query if p[0]]
     
-    unique_sales_people = db.session.query(
+    # Get unique sales people from leads (filter out NULL values)
+    unique_sales_people_query = db.session.query(
         Lead.sales_person_name
-    ).filter(Lead.sales_person_name.isnot(None)).distinct().order_by(Lead.sales_person_name).all()
-    unique_sales_people = [s[0] for s in unique_sales_people if s[0]]
+    ).filter(
+        Lead.sales_person_name.isnot(None),
+        Lead.sales_person_name != ''
+    ).distinct().order_by(Lead.sales_person_name).all()
+    unique_sales_people = [s[0] for s in unique_sales_people_query if s[0]]
     
     print(f"🎯 Filter Options:")
     print(f"   Unique Products: {unique_products}")
     print(f"   Unique Sales People: {unique_sales_people}")
+    print(f"   Total Leads with NULL product_list_id: {Lead.query.filter(Lead.product_list_id.is_(None)).count()}")
+    print(f"   Total Leads with NULL sales_person_name: {Lead.query.filter(Lead.sales_person_name.is_(None)).count()}")
     print(f"{'='*60}\n")
     
     return render_template(
@@ -704,202 +716,184 @@ def scalev_webhook():
             print(f"  - SKU: {variant_sku if variant_sku else 'Not available'}")
             print(f"  - Variant ID: {variant_unique_id}")
             
+            # Extract handler data from webhook FIRST (before product matching)
+            handler_data = data.get('handler', {})
+            handler_email = None
+            handler_name = None
+            handler_id = None
+            
+            if handler_data:
+                handler_email = handler_data.get('email')
+                handler_name = handler_data.get('fullname')
+                handler_id = handler_data.get('unique_id') or handler_data.get('id')
+                print(f"\n👤 Webhook Handler: {handler_name} ({handler_email}, ID: {handler_id})")
+            else:
+                print(f"\n⚠️  No handler data in webhook")
+            
             # Try to match product list by SKU, product name, or variant_unique_id
-            product_list = None
+            # IMPORTANT: Can have MULTIPLE lists with same product but different CS
+            candidate_lists = []
             matched_by = None
             
             # Priority 1: Try matching by SKU (if available)
             if variant_sku:
-                product_list = ProductList.query.filter_by(product_id=variant_sku).first()
-                if product_list:
+                lists = ProductList.query.filter_by(product_id=variant_sku, is_active=True).all()
+                if lists:
+                    candidate_lists.extend(lists)
                     matched_by = f"SKU: {variant_sku}"
             
             # Priority 2: Try matching by exact product name
-            if not product_list and product_name:
-                product_list = ProductList.query.filter_by(product_name=product_name).first()
-                if product_list:
+            if not candidate_lists and product_name:
+                lists = ProductList.query.filter_by(product_name=product_name, is_active=True).all()
+                if lists:
+                    candidate_lists.extend(lists)
                     matched_by = f"Exact Product Name: {product_name}"
             
             # Priority 3: Try matching by product name (partial/variant match)
             # This handles cases where webhook sends variant name like "Product - 100 ribu"
             # but database has base product name like "Product"
-            if not product_list and product_name:
+            if not candidate_lists and product_name:
                 # Get all active products and check if database name is contained in webhook name
                 all_products = ProductList.query.filter_by(is_active=True).all()
                 for p in all_products:
                     # Check if database product name is part of webhook product name
                     # AND database name is long enough to avoid false positives (min 5 chars)
                     if len(p.product_name) >= 5 and p.product_name in product_name:
-                        product_list = p
+                        candidate_lists.append(p)
                         matched_by = f"Partial Product Name: '{p.product_name}' found in '{product_name}'"
-                        break
             
             # Priority 4: Try matching by variant_unique_id
-            if not product_list and variant_unique_id:
-                product_list = ProductList.query.filter_by(product_id=variant_unique_id).first()
-                if product_list:
+            if not candidate_lists and variant_unique_id:
+                lists = ProductList.query.filter_by(product_id=variant_unique_id, is_active=True).all()
+                if lists:
+                    candidate_lists.extend(lists)
                     matched_by = f"Variant ID: {variant_unique_id}"
             
-            if product_list:
-                print(f"✓ Product matched by {matched_by}")
+            if not candidate_lists:
+                print(f"❌ No product list found for product: {product_name}")
+                print(f"   Please create a product list in the system first.")
+                return jsonify({'success': False, 'error': 'Product not configured'}), 404
+            
+            print(f"\n✓ Found {len(candidate_lists)} product list(s) matching by {matched_by}")
+            
+            # Now find which product list matches the handler (CS)
+            product_list = None
+            
+            for pl in candidate_lists:
+                print(f"\n📋 Checking Product List #{pl.id}:")
+                print(f"   Product: {pl.product_name}")
                 
-                # Extract handler data from webhook
-                handler_data = data.get('handler', {})
-                handler_email = None
-                handler_name = None
-                handler_id = None
-                
-                if handler_data:
-                    handler_email = handler_data.get('email')
-                    handler_name = handler_data.get('fullname')
-                    handler_id = handler_data.get('unique_id') or handler_data.get('id')
-                    print(f"   Webhook handler: {handler_name} ({handler_email}, ID: {handler_id})")
+                # Check if this list is for all sales or specific CS
+                if pl.is_for_all_sales():
+                    print(f"   ✓ List is for ALL SALES PERSONS")
+                    product_list = pl
+                    break
                 else:
-                    print(f"   ⚠️  No handler data in webhook")
-                
-                # Check if sales person matching is required
-                if not product_list.is_for_all_sales():
-                    sales_names = product_list.get_sales_person_names_list()
-                    sales_ids = product_list.get_sales_person_ids_list()
-                    print(f"\n👤 Sales person matching required for: {', '.join(sales_names)}")
+                    sales_names = pl.get_sales_person_names_list()
+                    sales_ids = pl.get_sales_person_ids_list()
+                    sales_emails = pl.get_sales_person_emails_list()
+                    print(f"   CS Required: {', '.join(sales_names)}")
                     
-                    # Check if handler matches any of the configured sales persons
+                    # Check if handler matches this list's CS
                     is_matched = False
                     
-                    # Try matching by ID first (more reliable)
-                    if handler_id and handler_id in sales_ids:
+                    # Try matching by ID first (most reliable)
+                    if handler_id and str(handler_id) in [str(sid) for sid in sales_ids]:
                         is_matched = True
                         print(f"   ✓ Handler matched by ID: {handler_id}")
                     
                     # Fallback: Try matching by email
                     if not is_matched and handler_email:
-                        sales_emails = product_list.get_sales_person_emails_list()
                         for sales_email in sales_emails:
                             if sales_email and handler_email.lower() == sales_email.lower():
                                 is_matched = True
                                 print(f"   ✓ Handler matched by email: {handler_email}")
                                 break
                     
-                    if not is_matched:
-                        print(f"   ❌ Handler NOT matched!")
-                        print(f"      Expected any of: {', '.join(sales_names)}")
-                        print(f"      Got: {handler_name} ({handler_email}, ID: {handler_id})")
-                        print(f"   → Skipping lead creation (sales person mismatch)")
-                        return jsonify({'success': True, 'message': 'Sales person mismatch, skipped'}), 200
-                else:
-                    print(f"✓ No sales person filter (All Sales mode)")
-                
-                # Extract customer info from destination_address
-                destination = data.get('destination_address', {})
-                customer_name = destination.get('name')
-                customer_email = destination.get('email')
-                customer_phone = destination.get('phone')
-                
-                print(f"Customer: {customer_name} ({customer_email}, {customer_phone})")
-                
-                # Validate required fields
-                if not customer_email or not customer_name:
-                    print(f"ERROR: Missing required customer data (name: {customer_name}, email: {customer_email})")
-                    return jsonify({'success': False, 'error': 'Missing customer data'}), 400
-                
-                # Check if lead already exists
-                existing_lead = Lead.query.filter_by(order_id=str(order_id)).first()
-                if existing_lead:
-                    print(f"INFO: Lead already exists for order {order_id}, skipping creation")
-                else:
-                    # Create lead
-                    try:
-                        lead = lead_service.create_lead(
-                            product_list_id=product_list.id,
-                            order_id=order_id,
-                            name=customer_name,
-                            email=customer_email,
-                            phone=customer_phone,
-                            order_data=data,
-                            sales_person_name=handler_name,
-                            sales_person_email=handler_email
-                        )
-                        print(f"✓ Lead created: {lead.email} - {lead.name}")
-                        
-                        # Send to Follow Up list immediately
-                        if product_list.mailketing_list_followup:
-                            print(f"\n📧 Sending to Follow Up list: {product_list.mailketing_list_followup}")
-                            try:
-                                settings_obj = Settings.query.first()
-                                if settings_obj and settings_obj.mailketing_api_key:
-                                    mailketing = MailketingService(settings_obj.mailketing_api_key)
-                                    result = mailketing.add_subscriber(
-                                        list_id=product_list.mailketing_list_followup,
-                                        email=lead.email,
-                                        first_name=lead.name,
-                                        mobile=lead.phone
-                                    )
-                                    if result:
-                                        lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_followup)
-                                        print(f"   ✓ Subscriber added to Follow Up list")
-                                    else:
-                                        print(f"   ⚠️  Failed to add subscriber to Follow Up list")
-                                else:
-                                    print(f"   ⚠️  Mailketing API key not configured")
-                            except Exception as e:
-                                print(f"   ❌ Error sending to Mailketing: {str(e)}")
-                        else:
-                            print(f"⚠️  No Follow Up list configured for this product")
-                    except Exception as e:
-                        print(f"ERROR: Failed to create lead: {str(e)}")
-                        return jsonify({'success': False, 'error': str(e)}), 500
+                    # Fallback: Try matching by name (less reliable)
+                    if not is_matched and handler_name:
+                        for sales_name in sales_names:
+                            if sales_name and handler_name.lower() == sales_name.lower():
+                                is_matched = True
+                                print(f"   ✓ Handler matched by name: {handler_name}")
+                                break
+                    
+                    if is_matched:
+                        print(f"   ✓ CS MATCHED! Using this product list.")
+                        product_list = pl
+                        break
+                    else:
+                        print(f"   ✗ CS not matched, trying next list...")
+            
+            if not product_list:
+                print(f"\n❌ No product list matched for handler!")
+                print(f"   Product: {product_name}")
+                print(f"   Handler: {handler_name} ({handler_email}, ID: {handler_id})")
+                print(f"   Found {len(candidate_lists)} product list(s) but none matched the handler.")
+                print(f"   → Skipping lead creation")
+                return jsonify({'success': True, 'message': 'No product list matched handler'}), 200
+            
+            print(f"\n✅ FINAL: Using Product List #{product_list.id} - {product_list.product_name}")
+            
+            # Extract customer info from destination_address
+            destination = data.get('destination_address', {})
+            customer_name = destination.get('name')
+            customer_email = destination.get('email')
+            customer_phone = destination.get('phone')
+            
+            print(f"Customer: {customer_name} ({customer_email}, {customer_phone})")
+            
+            # Validate required fields
+            if not customer_email or not customer_name:
+                print(f"ERROR: Missing required customer data (name: {customer_name}, email: {customer_email})")
+                return jsonify({'success': False, 'error': 'Missing customer data'}), 400
+            
+            # Check if lead already exists
+            existing_lead = Lead.query.filter_by(order_id=str(order_id)).first()
+            if existing_lead:
+                print(f"INFO: Lead already exists for order {order_id}, skipping creation")
             else:
-                print(f"\n❌ PRODUCT NOT FOUND IN DATABASE")
-                print(f"   Product from webhook: '{product_name}'")
-                print(f"   - SKU: {variant_sku if variant_sku else 'Not available'}")
-                print(f"   - Variant ID: {variant_unique_id}")
-                print(f"\n💡 SOLUTION: Add this product to Product Lists page")
-                print(f"\n   📌 TIP: Untuk produk dengan variant (S/M/L, 100rb/200rb/500rb, dll):")
-                print(f"      Gunakan NAMA PRODUK BASE (tanpa variant) untuk match semua variant")
-                print(f"      Contoh:")
-                print(f"        Webhook: 'Sedekah Jariyah Kawasan Qur'an - 100 ribu'")
-                print(f"        Database: 'Sedekah Jariyah Kawasan Qur'an'  ← Akan match!")
-                print(f"")
-                print(f"   Option 1 - Match by Base Product Name (👍 Recommended untuk variant):")
-                # Extract potential base name by splitting on common variant separators
-                base_name_candidates = []
-                if ' - ' in product_name:
-                    base_name_candidates.append(product_name.split(' - ')[0])
-                if ' / ' in product_name:
-                    base_name_candidates.append(product_name.split(' / ')[0])
-                
-                if base_name_candidates:
-                    print(f"      Product ID: (any, e.g., BASE01)")
-                    print(f"      Product Name: {base_name_candidates[0]}")
-                    print(f"      → Ini akan match semua variant dari produk ini")
-                else:
-                    print(f"      Product ID: (any, e.g., SJ100)")
-                    print(f"      Product Name: [Base product name without variant]")
-                print(f"")
-                print(f"   Option 2 - Match by Exact Full Name (untuk produk tanpa variant):")
-                print(f"      Product ID: (any, e.g., SJ100)")
-                print(f"      Product Name: {product_name}")
-                print(f"")
-                print(f"   Option 3 - Match by Variant ID (specific variant saja):")
-                print(f"      Product ID: {variant_unique_id}")
-                print(f"      Product Name: {product_name}")
-                if variant_sku:
-                    print(f"")
-                    print(f"   Option 4 - Match by SKU:")
-                    print(f"      Product ID: {variant_sku}")
-                    print(f"      Product Name: {product_name}")
-                
-                # List existing products for reference
-                existing_products = ProductList.query.filter_by(is_active=True).all()
-                if existing_products:
-                    print(f"\n📋 Currently configured products ({len(existing_products)}):")
-                    for p in existing_products[:5]:  # Show first 5
-                        print(f"   - {p.product_name} (ID: {p.product_id})")
-                    if len(existing_products) > 5:
-                        print(f"   ... and {len(existing_products) - 5} more")
-                else:
-                    print(f"\n⚠️  No products configured yet. Please add products in Product Lists page.")
-                print("")
+                # Create lead
+                try:
+                    lead = lead_service.create_lead(
+                        product_list_id=product_list.id,
+                        order_id=order_id,
+                        name=customer_name,
+                        email=customer_email,
+                        phone=customer_phone,
+                        order_data=data,
+                        sales_person_name=handler_name,
+                        sales_person_email=handler_email
+                    )
+                    print(f"✓ Lead created: {lead.email} - {lead.name}")
+                    
+                    # Send to Follow Up list immediately
+                    if product_list.mailketing_list_followup:
+                        print(f"\n📧 Sending to Follow Up list: {product_list.mailketing_list_followup}")
+                        try:
+                            settings_obj = Settings.query.first()
+                            if settings_obj and settings_obj.mailketing_api_key:
+                                mailketing = MailketingService(settings_obj.mailketing_api_key)
+                                result = mailketing.add_subscriber(
+                                    list_id=product_list.mailketing_list_followup,
+                                    email=lead.email,
+                                    first_name=lead.name,
+                                    mobile=lead.phone
+                                )
+                                if result:
+                                    lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_followup)
+                                    print(f"   ✓ Subscriber added to Follow Up list")
+                                else:
+                                    print(f"   ⚠️  Failed to add subscriber to Follow Up list")
+                            else:
+                                print(f"   ⚠️  Mailketing API key not configured")
+                        except Exception as e:
+                            print(f"   ❌ Error sending to Mailketing: {str(e)}")
+                    else:
+                        print(f"⚠️  No Follow Up list configured for this product")
+                except Exception as e:
+                    print(f"ERROR: Failed to create lead: {str(e)}")
+                    return jsonify({'success': False, 'error': str(e)}), 500
         
         elif event_type == 'order.payment_status_changed':
             # Order payment status changed
