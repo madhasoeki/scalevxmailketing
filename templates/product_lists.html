@@ -42,9 +42,16 @@
                             <small class="text-muted">ID: {{ list.product_id }}</small>
                         </td>
                         <td>
-                            {% if list.sales_person_name %}
-                                <span class="badge bg-info">{{ list.sales_person_name }}</span><br>
-                                <small class="text-muted">{{ list.sales_person_email }}</small>
+                            {% if not list.is_for_all_sales() %}
+                                {% set sales_names = list.get_sales_person_names_list() %}
+                                {% if sales_names|length == 1 %}
+                                    <span class="badge bg-info">{{ sales_names[0] }}</span><br>
+                                    <small class="text-muted">{{ list.get_sales_person_emails_list()[0] }}</small>
+                                {% else %}
+                                    <span class="badge bg-info">{{ sales_names[0] }}</span>
+                                    <span class="badge bg-secondary">+{{ sales_names|length - 1 }} lainnya</span><br>
+                                    <small class="text-muted">Multiple CS</small>
+                                {% endif %}
                             {% else %}
                                 <span class="badge bg-secondary">All Sales</span>
                             {% endif %}
@@ -161,14 +168,11 @@
                         <h6 class="text-primary mb-3"><i class="bi bi-person"></i> Step 3: Pilih Sales Person (Opsional)</h6>
                         <div class="mb-3">
                             <label for="sales_person_select" class="form-label">Sales Person</label>
-                            <select class="form-select" id="sales_person_select">
-                                <option value="" selected>All Sales (Semua CS)</option>
+                            <select class="form-select" id="sales_person_select" multiple>
+                                <!-- Options will be loaded dynamically -->
                             </select>
-                            <input type="hidden" id="sales_person_id" name="sales_person_id">
-                            <input type="hidden" id="sales_person_name" name="sales_person_name">
-                            <input type="hidden" id="sales_person_email" name="sales_person_email">
                             <small class="form-text text-muted">
-                                <i class="bi bi-info-circle"></i> Kosongkan untuk menerima order dari semua CS
+                                <i class="bi bi-info-circle"></i> Pilih satu atau lebih CS. Kosongkan untuk menerima order dari semua CS
                             </small>
                         </div>
                     </div>
@@ -252,9 +256,6 @@
                 <input type="hidden" id="edit_store_name" name="store_name">
                 <input type="hidden" id="edit_product_id" name="product_id">
                 <input type="hidden" id="edit_product_name" name="product_name">
-                <input type="hidden" id="edit_sales_person_id" name="sales_person_id">
-                <input type="hidden" id="edit_sales_person_name" name="sales_person_name">
-                <input type="hidden" id="edit_sales_person_email" name="sales_person_email">
                 
                 <div class="modal-body" style="min-height: 400px; max-height: 70vh; overflow-y: auto;">
                     <!-- Display Store & Product (Read-only) -->
@@ -265,7 +266,20 @@
                             <strong>Product:</strong> <span id="display_product_name"></span><br>
                             <strong>Sales Person:</strong> <span id="display_sales_person"></span>
                         </div>
-                        <small class="text-muted">Store, Product, dan Sales Person tidak bisa diubah. Hapus dan buat baru jika perlu mengubah.</small>
+                        <small class="text-muted">Store dan Product tidak bisa diubah. Untuk mengubah sales person, edit di bawah. Untuk mengubah store/product, hapus dan buat baru.</small>
+                    </div>
+
+                    <!-- Edit Sales Persons -->
+                    <div class="mb-4">
+                        <h6 class="text-primary mb-3"><i class="bi bi-person"></i> Sales Person</h6>
+                        <div class="mb-3">
+                            <label for="edit_sales_person_select" class="form-label">Pilih Sales Person</label>
+                            <select class="form-select" id="edit_sales_person_select" multiple>
+                                <!-- Options akan dimuat dinamis -->\n                            </select>
+                            <small class="form-text text-muted">
+                                <i class="bi bi-info-circle"></i> Pilih satu atau lebih CS. Kosongkan untuk semua CS
+                            </small>
+                        </div>
                     </div>
 
                     <!-- Edit Mailketing Lists -->
@@ -377,13 +391,14 @@ $(document).ready(function() {
         dropdownParent: $('#addProductModal')
     });
 
-    // Initialize Select2 for Sales Person dropdown
+    // Initialize Select2 for Sales Person dropdown (Multiple)
     const salesSelect = $('#sales_person_select').select2({
         theme: 'bootstrap-5',
         placeholder: 'All Sales (Semua CS)',
         allowClear: true,
         width: '100%',
-        dropdownParent: $('#addProductModal')
+        dropdownParent: $('#addProductModal'),
+        closeOnSelect: false
     });
 
     // Initialize Select2 for Mailketing Lists
@@ -432,18 +447,45 @@ $(document).ready(function() {
         }
     });
 
-    // Handle Sales Person selection
-    salesSelect.on('change', function() {
-        const selectedOption = $(this).find('option:selected');
-        if (selectedOption.val()) {
-            $('#sales_person_id').val(selectedOption.val());
-            $('#sales_person_name').val(selectedOption.attr('data-name'));
-            $('#sales_person_email').val(selectedOption.attr('data-email'));
-        } else {
-            $('#sales_person_id').val('');
-            $('#sales_person_name').val('');
-            $('#sales_person_email').val('');
-        }
+    // Handle form submission - add hidden fields for multiple sales persons
+    $('#productListForm').on('submit', function(e) {
+        // Remove any previous hidden fields
+        $(this).find('input[name=\"sales_person_id[]\"]').remove();
+        $(this).find('input[name=\"sales_person_name[]\"]').remove();
+        $(this).find('input[name=\"sales_person_email[]\"]').remove();
+        
+        // Get selected sales persons
+        const selectedOptions = salesSelect.find('option:selected');
+        
+        // Add hidden fields for each selected sales person
+        selectedOptions.each(function() {
+            const $option = $(this);
+            const id = $option.val();
+            const name = $option.attr('data-name');
+            const email = $option.attr('data-email');
+            
+            if (id) {  // Skip if empty/all sales
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'sales_person_id[]',
+                    value: id
+                }).appendTo('#productListForm');
+                
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'sales_person_name[]',
+                    value: name
+                }).appendTo('#productListForm');
+                
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'sales_person_email[]',
+                    value: email
+                }).appendTo('#productListForm');
+            }
+        });
+        
+        // Form will submit normally
     });
 
     // Function to load products by store
@@ -473,14 +515,14 @@ $(document).ready(function() {
 
     // Function to load sales people by store
     function loadSalesPeople(storeId) {
-        salesSelect.html('<option value="" selected>All Sales (Semua CS)</option>');
+        salesSelect.html('');
         
         $.ajax({
             url: '/api/scalev/stores/' + storeId + '/sales-people',
             method: 'GET',
             success: function(data) {
                 if (data.success && data.sales_people) {
-                    let options = '<option value="" selected>All Sales (Semua CS)</option>';
+                    let options = '';
                     data.sales_people.forEach(function(sales) {
                         const user = sales.business_user.user;
                         options += '<option value="' + user.id + '" ' +
@@ -489,12 +531,10 @@ $(document).ready(function() {
                                    user.fullname + ' (' + user.email + ')</option>';
                     });
                     salesSelect.html(options);
-                } else {
-                    salesSelect.html('<option value="" selected>All Sales (Semua CS)</option>');
                 }
             },
             error: function() {
-                salesSelect.html('<option value="" selected>All Sales (Semua CS)</option>');
+                console.error('Error loading sales people');
             }
         });
     }
@@ -510,7 +550,10 @@ $(document).ready(function() {
         {% endif %}
         $('#product_section, #sales_section, #lists_section').hide();
         $('#store_id, #store_name, #product_id, #product_name').val('');
-        $('#sales_person_id, #sales_person_name, #sales_person_email').val('');
+        // Remove hidden sales person fields
+        $('#productListForm').find('input[name=\"sales_person_id[]\"]').remove();
+        $('#productListForm').find('input[name=\"sales_person_name[]\"]').remove();
+        $('#productListForm').find('input[name=\"sales_person_email[]\"]').remove();
     });
 });
 
@@ -530,20 +573,24 @@ function editProductList(listId) {
             $('#edit_store_name').val(data.store_name);
             $('#edit_product_id').val(data.product_id);
             $('#edit_product_name').val(data.product_name);
-            $('#edit_sales_person_id').val(data.sales_person_id || '');
-            $('#edit_sales_person_name').val(data.sales_person_name || '');
-            $('#edit_sales_person_email').val(data.sales_person_email || '');
             
             // Display store & product info
             $('#display_store_name').text(data.store_name + ' (ID: ' + data.store_id + ')');
             $('#display_product_name').text(data.product_name + ' (ID: ' + data.product_id + ')');
             
-            // Display sales person
-            if (data.sales_person_name) {
-                $('#display_sales_person').html('<span class="badge bg-info">' + data.sales_person_name + '</span> (' + data.sales_person_email + ')');
+            // Display current sales persons
+            if (data.sales_person_names && data.sales_person_names.length > 0) {
+                let salesHtml = '';
+                data.sales_person_names.forEach(function(name, i) {
+                    salesHtml += '<span class="badge bg-info me-1">' + name + '</span>';
+                });
+                $('#display_sales_person').html(salesHtml);
             } else {
                 $('#display_sales_person').html('<span class="badge bg-secondary">All Sales (Semua CS)</span>');
             }
+            
+            // Load sales people for edit dropdown
+            loadSalesPeopleForEdit(data.store_id, data.sales_person_ids || []);
             
             // Set mailketing list values
             $('#edit_mailketing_list_followup').val(data.mailketing_list_followup || '');
@@ -558,6 +605,90 @@ function editProductList(listId) {
         }
     });
 }
+
+// Load sales people for edit modal
+function loadSalesPeopleForEdit(storeId, selectedIds) {
+    const editSalesSelect = $('#edit_sales_person_select');
+    
+    $.ajax({
+        url: '/api/scalev/stores/' + storeId + '/sales-people',
+        method: 'GET',
+        success: function(data) {
+            if (data.success && data.sales_people) {
+                let options = '';
+                data.sales_people.forEach(function(sales) {
+                    const user = sales.business_user.user;
+                    const isSelected = selectedIds.includes(user.id);
+                    options += '<option value="' + user.id + '" ' +
+                               'data-name="' + user.fullname + '" ' +
+                               'data-email="' + user.email + '"' +
+                               (isSelected ? ' selected' : '') + '>' + 
+                               user.fullname + ' (' + user.email + ')</option>';
+                });
+                editSalesSelect.html(options);
+                
+                // Initialize Select2 for edit modal (reinit to apply selected)
+                if (editSalesSelect.hasClass('select2-hidden-accessible')) {
+                    editSalesSelect.select2('destroy');
+                }
+                editSalesSelect.select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'All Sales (Semua CS)',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#editProductModal'),
+                    closeOnSelect: false
+                });
+            }
+        },
+        error: function() {
+            console.error('Error loading sales people for edit');
+        }
+    });
+}
+
+// Handle edit form submission
+$(document).ready(function() {
+    $('#editProductForm').on('submit', function(e) {
+        // Remove any previous hidden fields
+        $(this).find('input[name="sales_person_id[]"]').remove();
+        $(this).find('input[name="sales_person_name[]"]').remove();
+        $(this).find('input[name="sales_person_email[]"]').remove();
+        
+        // Get selected sales persons
+        const selectedOptions = $('#edit_sales_person_select').find('option:selected');
+        
+        // Add hidden fields for each selected sales person
+        selectedOptions.each(function() {
+            const $option = $(this);
+            const id = $option.val();
+            const name = $option.attr('data-name');
+            const email = $option.attr('data-email');
+            
+            if (id) {  // Skip if empty
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'sales_person_id[]',
+                    value: id
+                }).appendTo('#editProductForm');
+                
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'sales_person_name[]',
+                    value: name
+                }).appendTo('#editProductForm');
+                
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'sales_person_email[]',
+                    value: email
+                }).appendTo('#editProductForm');
+            }
+        });
+        
+        // Form will submit normally
+    });
+});
 </script>
 {% endblock %}
 

@@ -240,9 +240,12 @@ def add_product_list():
     store_name = request.form.get('store_name')
     product_name = request.form.get('product_name')
     product_id = request.form.get('product_id')
-    sales_person_id = request.form.get('sales_person_id')
-    sales_person_name = request.form.get('sales_person_name')
-    sales_person_email = request.form.get('sales_person_email')
+    
+    # Get multiple sales persons (getlist returns array)
+    sales_person_ids = request.form.getlist('sales_person_id[]')
+    sales_person_names = request.form.getlist('sales_person_name[]')
+    sales_person_emails = request.form.getlist('sales_person_email[]')
+    
     mailketing_list_followup = request.form.get('mailketing_list_followup')
     mailketing_list_closing = request.form.get('mailketing_list_closing')
     mailketing_list_not_closing = request.form.get('mailketing_list_not_closing')
@@ -256,13 +259,14 @@ def add_product_list():
         store_name=store_name,
         product_name=product_name,
         product_id=product_id,
-        sales_person_id=sales_person_id if sales_person_id else None,
-        sales_person_name=sales_person_name if sales_person_name else None,
-        sales_person_email=sales_person_email if sales_person_email else None,
         mailketing_list_followup=mailketing_list_followup if mailketing_list_followup else None,
         mailketing_list_closing=mailketing_list_closing if mailketing_list_closing else None,
         mailketing_list_not_closing=mailketing_list_not_closing if mailketing_list_not_closing else None
     )
+    
+    # Set multiple sales persons
+    if sales_person_ids and len(sales_person_ids) > 0:
+        product_list.set_sales_persons(sales_person_ids, sales_person_names, sales_person_emails)
     
     db.session.add(product_list)
     db.session.commit()
@@ -305,17 +309,16 @@ def edit_product_list(list_id):
             product_list.mailketing_list_closing = request.form.get('mailketing_list_closing')
             product_list.mailketing_list_not_closing = request.form.get('mailketing_list_not_closing')
             
-            # Update sales person if changed
-            sales_person_id = request.form.get('sales_person_id')
-            if sales_person_id:
-                product_list.sales_person_id = sales_person_id
-                product_list.sales_person_name = request.form.get('sales_person_name')
-                product_list.sales_person_email = request.form.get('sales_person_email')
+            # Update multiple sales persons
+            sales_person_ids = request.form.getlist('sales_person_id[]')
+            sales_person_names = request.form.getlist('sales_person_name[]')
+            sales_person_emails = request.form.getlist('sales_person_email[]')
+            
+            if sales_person_ids and len(sales_person_ids) > 0:
+                product_list.set_sales_persons(sales_person_ids, sales_person_names, sales_person_emails)
             else:
                 # Reset to "All Sales"
-                product_list.sales_person_id = None
-                product_list.sales_person_name = None
-                product_list.sales_person_email = None
+                product_list.set_sales_persons([], [], [])
             
             db.session.commit()
             flash(f'Product list "{product_list.product_name}" berhasil diupdate!', 'success')
@@ -333,9 +336,9 @@ def edit_product_list(list_id):
         'store_name': product_list.store_name,
         'product_id': product_list.product_id,
         'product_name': product_list.product_name,
-        'sales_person_id': product_list.sales_person_id,
-        'sales_person_name': product_list.sales_person_name,
-        'sales_person_email': product_list.sales_person_email,
+        'sales_person_ids': product_list.get_sales_person_ids_list(),
+        'sales_person_names': product_list.get_sales_person_names_list(),
+        'sales_person_emails': product_list.get_sales_person_emails_list(),
         'mailketing_list_followup': product_list.mailketing_list_followup,
         'mailketing_list_closing': product_list.mailketing_list_closing,
         'mailketing_list_not_closing': product_list.mailketing_list_not_closing
@@ -570,36 +573,51 @@ def scalev_webhook():
             if product_list:
                 print(f"✓ Product matched by {matched_by}")
                 
+                # Extract handler data from webhook
+                handler_data = data.get('handler', {})
+                handler_email = None
+                handler_name = None
+                handler_id = None
+                
+                if handler_data:
+                    handler_email = handler_data.get('email')
+                    handler_name = handler_data.get('fullname')
+                    handler_id = handler_data.get('unique_id') or handler_data.get('id')
+                    print(f"   Webhook handler: {handler_name} ({handler_email}, ID: {handler_id})")
+                else:
+                    print(f"   ⚠️  No handler data in webhook")
+                
                 # Check if sales person matching is required
-                if product_list.sales_person_email:
-                    print(f"\n👤 Sales person matching required: {product_list.sales_person_name} ({product_list.sales_person_email})")
+                if not product_list.is_for_all_sales():
+                    sales_names = product_list.get_sales_person_names_list()
+                    sales_ids = product_list.get_sales_person_ids_list()
+                    print(f"\n👤 Sales person matching required for: {', '.join(sales_names)}")
                     
-                    # Extract handler data from webhook
-                    handler_data = data.get('handler', {})
-                    handler_email = None
-                    handler_name = None
+                    # Check if handler matches any of the configured sales persons
+                    is_matched = False
                     
-                    if handler_data:
-                        handler_email = handler_data.get('email')
-                        handler_name = handler_data.get('fullname')
-                        print(f"   Webhook handler: {handler_name} ({handler_email})")
-                    else:
-                        print(f"   ⚠️  No handler data in webhook")
+                    # Try matching by ID first (more reliable)
+                    if handler_id and handler_id in sales_ids:
+                        is_matched = True
+                        print(f"   ✓ Handler matched by ID: {handler_id}")
                     
-                    # Match by email
-                    if handler_email and handler_email.lower() == product_list.sales_person_email.lower():
-                        print(f"   ✓ Handler matched!")
-                    else:
+                    # Fallback: Try matching by email
+                    if not is_matched and handler_email:
+                        sales_emails = product_list.get_sales_person_emails_list()
+                        for sales_email in sales_emails:
+                            if sales_email and handler_email.lower() == sales_email.lower():
+                                is_matched = True
+                                print(f"   ✓ Handler matched by email: {handler_email}")
+                                break
+                    
+                    if not is_matched:
                         print(f"   ❌ Handler NOT matched!")
-                        print(f"      Expected: {product_list.sales_person_email}")
-                        print(f"      Got: {handler_email}")
+                        print(f"      Expected any of: {', '.join(sales_names)}")
+                        print(f"      Got: {handler_name} ({handler_email}, ID: {handler_id})")
                         print(f"   → Skipping lead creation (sales person mismatch)")
                         return jsonify({'success': True, 'message': 'Sales person mismatch, skipped'}), 200
                 else:
                     print(f"✓ No sales person filter (All Sales mode)")
-                    handler_data = data.get('handler', {})
-                    handler_email = handler_data.get('email') if handler_data else None
-                    handler_name = handler_data.get('fullname') if handler_data else None
                 
                 # Extract customer info from destination_address
                 destination = data.get('destination_address', {})

@@ -1,5 +1,6 @@
 from datetime import datetime
 import pytz
+import json
 from database import db
 
 # Timezone WIB (UTC+7)
@@ -28,9 +29,10 @@ class ProductList(db.Model):
     store_name = db.Column(db.String(255), nullable=False)
     product_name = db.Column(db.String(255), nullable=False)
     product_id = db.Column(db.String(100), nullable=False, unique=True)
-    sales_person_id = db.Column(db.String(100), nullable=True)  # NULL = all sales persons
-    sales_person_name = db.Column(db.String(255), nullable=True)
-    sales_person_email = db.Column(db.String(255), nullable=True)
+    # Store multiple sales persons as JSON arrays
+    sales_person_ids = db.Column(db.Text, nullable=True)  # JSON array: ["id1", "id2"]
+    sales_person_names = db.Column(db.Text, nullable=True)  # JSON array: ["Name 1", "Name 2"]
+    sales_person_emails = db.Column(db.Text, nullable=True)  # JSON array: ["email1@x.com", "email2@x.com"]
     mailketing_list_followup = db.Column(db.String(100), nullable=True)
     mailketing_list_closing = db.Column(db.String(100), nullable=True)
     mailketing_list_not_closing = db.Column(db.String(100), nullable=True)
@@ -39,6 +41,61 @@ class ProductList(db.Model):
     updated_at = db.Column(db.DateTime, default=get_wib_now, onupdate=get_wib_now)
     
     leads = db.relationship('Lead', backref='product_list', lazy=True)
+    
+    def get_sales_person_ids_list(self):
+        """Get sales person IDs as list"""
+        if not self.sales_person_ids:
+            return []
+        try:
+            return json.loads(self.sales_person_ids)
+        except:
+            return []
+    
+    def get_sales_person_names_list(self):
+        """Get sales person names as list"""
+        if not self.sales_person_names:
+            return []
+        try:
+            return json.loads(self.sales_person_names)
+        except:
+            return []
+    
+    def get_sales_person_emails_list(self):
+        """Get sales person emails as list"""
+        if not self.sales_person_emails:
+            return []
+        try:
+            return json.loads(self.sales_person_emails)
+        except:
+            return []
+    
+    def set_sales_persons(self, ids, names, emails):
+        """Set sales persons from lists"""
+        self.sales_person_ids = json.dumps(ids) if ids else None
+        self.sales_person_names = json.dumps(names) if names else None
+        self.sales_person_emails = json.dumps(emails) if emails else None
+    
+    def is_for_all_sales(self):
+        """Check if this list is for all sales persons"""
+        return not self.sales_person_ids or len(self.get_sales_person_ids_list()) == 0
+    
+    def is_sales_person_included(self, sales_person_id):
+        """Check if a sales person ID is included in this list"""
+        if self.is_for_all_sales():
+            return True
+        return sales_person_id in self.get_sales_person_ids_list()
+    
+    def get_sales_person_display(self):
+        """Get display text for sales persons"""
+        if self.is_for_all_sales():
+            return "All Sales Persons"
+        names = self.get_sales_person_names_list()
+        if len(names) == 0:
+            return "All Sales Persons"
+        elif len(names) == 1:
+            return names[0]
+        else:
+            return f"{names[0]} +{len(names)-1} others"
     
     def __repr__(self):
         return f'<ProductList {self.product_name}>'
