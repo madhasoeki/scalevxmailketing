@@ -43,38 +43,47 @@ class ProductList(db.Model):
     leads = db.relationship('Lead', backref='product_list', lazy=True)
     
     def get_sales_person_ids_list(self):
-        """Get sales person IDs as list"""
-        # Check if attribute exists (for backward compatibility before migration)
-        if not hasattr(self, 'sales_person_ids') or not self.sales_person_ids:
-            return []
-        try:
-            return json.loads(self.sales_person_ids)
-        except:
-            return []
+        """Get sales person IDs as list (backward compatible)"""
+        # Check if new column exists (post-migration)
+        if hasattr(self, 'sales_person_ids') and self.sales_person_ids:
+            try:
+                return json.loads(self.sales_person_ids)
+            except:
+                return []
+        # Fallback to old single column (pre-migration)
+        elif hasattr(self, 'sales_person_id') and self.sales_person_id:
+            return [self.sales_person_id]
+        return []
     
     def get_sales_person_names_list(self):
-        """Get sales person names as list"""
-        # Check if attribute exists (for backward compatibility before migration)
-        if not hasattr(self, 'sales_person_names') or not self.sales_person_names:
-            return []
-        try:
-            return json.loads(self.sales_person_names)
-        except:
-            return []
+        """Get sales person names as list (backward compatible)"""
+        # Check if new column exists (post-migration)
+        if hasattr(self, 'sales_person_names') and self.sales_person_names:
+            try:
+                return json.loads(self.sales_person_names)
+            except:
+                return []
+        # Fallback to old single column (pre-migration)
+        elif hasattr(self, 'sales_person_name') and self.sales_person_name:
+            return [self.sales_person_name]
+        return []
     
     def get_sales_person_emails_list(self):
-        """Get sales person emails as list"""
-        # Check if attribute exists (for backward compatibility before migration)
-        if not hasattr(self, 'sales_person_emails') or not self.sales_person_emails:
-            return []
-        try:
-            return json.loads(self.sales_person_emails)
-        except:
-            return []
+        """Get sales person emails as list (backward compatible)"""
+        # Check if new column exists (post-migration)
+        if hasattr(self, 'sales_person_emails') and self.sales_person_emails:
+            try:
+                return json.loads(self.sales_person_emails)
+            except:
+                return []
+        # Fallback to old single column (pre-migration)
+        elif hasattr(self, 'sales_person_email') and self.sales_person_email:
+            return [self.sales_person_email]
+        return []
     
     def set_sales_persons(self, ids, names, emails):
-        """Set sales persons from lists"""
-        # Check if attributes exist (for backward compatibility)
+        """Set sales persons from lists (backward compatible)"""
+        # Only set if columns exist (post-migration)
         if hasattr(self, 'sales_person_ids'):
             self.sales_person_ids = json.dumps(ids) if ids else None
         if hasattr(self, 'sales_person_names'):
@@ -83,18 +92,20 @@ class ProductList(db.Model):
             self.sales_person_emails = json.dumps(emails) if emails else None
     
     def is_for_all_sales(self):
-        """Check if this list is for all sales persons"""
-        # Backward compatibility: if new fields don't exist, check old field
-        if not hasattr(self, 'sales_person_ids'):
-            return not hasattr(self, 'sales_person_id') or not self.sales_person_id
-        return not self.sales_person_ids or len(self.get_sales_person_ids_list()) == 0
+        """Check if this list is for all sales persons (backward compatible)"""
+        # Check new columns first
+        if hasattr(self, 'sales_person_ids'):
+            return not self.sales_person_ids or len(self.get_sales_person_ids_list()) == 0
+        # Fallback to old column
+        elif hasattr(self, 'sales_person_id'):
+            return not self.sales_person_id
+        return True  # Default: all sales
     
     def is_sales_person_included(self, sales_person_id):
         """Check if a sales person ID is included in this list"""
         if self.is_for_all_sales():
             return True
-        ids = self.get_sales_person_ids_list()
-        return sales_person_id in ids
+        return sales_person_id in self.get_sales_person_ids_list()
     
     def get_sales_person_display(self):
         """Get display text for sales persons"""

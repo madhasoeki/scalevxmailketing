@@ -209,7 +209,15 @@ def settings():
 @login_required
 def product_lists():
     """Product lists management"""
-    lists = ProductList.query.all()
+    try:
+        lists = ProductList.query.all()
+    except Exception as e:
+        # If database not migrated yet, columns might not exist
+        print(f"ERROR loading product lists: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash('Database belum di-migrate. Silakan restart aplikasi untuk auto-migration.', 'danger')
+        lists = []
     
     settings_obj = Settings.query.first()
     
@@ -909,6 +917,32 @@ if __name__ == '__main__':
         id='check_expired_leads',
         name='Check expired follow-up leads',
         replace_existing=True
+    )
+    scheduler.start()
+    
+    try:
+        app.run(debug=False, host='0.0.0.0', port=5000)
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
+
+# Auto-run migration on first import (for WSGI servers like gunicorn/uwsgi)
+# This ensures migration runs even when app is imported, not executed directly
+@app.before_first_request
+def run_migrations():
+    """Run database migrations before first request"""
+    try:
+        # Ensure all tables are created first
+        db.create_all()
+        
+        # Then run migrations for new columns
+        from migrate_database import migrate
+        print("\n🔄 [First Request] Running database migration...")
+        migrate()
+        print("✅ [First Request] Migration check completed\n")
+    except Exception as e:
+        print(f"⚠️  [First Request] Migration failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
     )
     scheduler.start()
     

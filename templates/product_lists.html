@@ -42,23 +42,16 @@
                             <small class="text-muted">ID: {{ list.product_id }}</small>
                         </td>
                         <td>
-                            {% if list.sales_person_ids %}
+                            {% if not list.is_for_all_sales() %}
                                 {% set sales_names = list.get_sales_person_names_list() %}
-                                {% if sales_names and sales_names|length > 0 %}
-                                    {% if sales_names|length == 1 %}
-                                        <span class="badge bg-info">{{ sales_names[0] }}</span><br>
-                                        <small class="text-muted">{{ list.get_sales_person_emails_list()[0] }}</small>
-                                    {% else %}
-                                        <span class="badge bg-info">{{ sales_names[0] }}</span>
-                                        <span class="badge bg-secondary">+{{ sales_names|length - 1 }} lainnya</span><br>
-                                        <small class="text-muted">Multiple CS</small>
-                                    {% endif %}
+                                {% if sales_names|length == 1 %}
+                                    <span class="badge bg-info">{{ sales_names[0] }}</span><br>
+                                    <small class="text-muted">{{ list.get_sales_person_emails_list()[0] }}</small>
                                 {% else %}
-                                    <span class="badge bg-secondary">All Sales</span>
+                                    <span class="badge bg-info">{{ sales_names[0] }}</span>
+                                    <span class="badge bg-secondary">+{{ sales_names|length - 1 }} lainnya</span><br>
+                                    <small class="text-muted">Multiple CS</small>
                                 {% endif %}
-                            {% elif list.sales_person_name %}
-                                <span class="badge bg-info">{{ list.sales_person_name }}</span><br>
-                                <small class="text-muted">{{ list.sales_person_email }}</small>
                             {% else %}
                                 <span class="badge bg-secondary">All Sales</span>
                             {% endif %}
