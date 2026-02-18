@@ -36,9 +36,69 @@
     </li>
 </ul>
 
+<!-- Advanced Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="card-title mb-3">
+            <i class="bi bi-funnel"></i> Filter Lanjutan
+        </h6>
+        <form method="GET" action="{{ url_for('leads') }}" id="filterForm">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="dateFrom" class="form-label">Dari Tanggal</label>
+                    <input type="date" class="form-control" id="dateFrom" name="date_from" value="{{ date_from }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="dateTo" class="form-label">Sampai Tanggal</label>
+                    <input type="date" class="form-control" id="dateTo" name="date_to" value="{{ date_to }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="salesPerson" class="form-label">Customer Service</label>
+                    <select class="form-select" id="salesPerson" name="sales_person">
+                        <option value="">Semua CS</option>
+                        {% for sp in unique_sales_people %}
+                        <option value="{{ sp }}" {% if sp == sales_person_filter %}selected{% endif %}>
+                            {{ sp }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="product" class="form-label">Produk</label>
+                    <select class="form-select" id="product" name="product">
+                        <option value="">Semua Produk</option>
+                        {% for prod in unique_products %}
+                        <option value="{{ prod }}" {% if prod == product_filter %}selected{% endif %}>
+                            {{ prod }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+                <a href="{{ url_for('leads', status=status_filter) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body">
-        {% if leads %}
+        {% if pagination.total > 0 %}
+        <!-- Results Info -->
+        <div class="mb-3 text-muted">
+            <small>
+                Menampilkan {{ ((pagination.page - 1) * 20) + 1 }} - {{ min(pagination.page * 20, pagination.total) }} 
+                dari {{ pagination.total }} leads
+            </small>
+        </div>
+        
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
@@ -47,6 +107,7 @@
                         <th>Email</th>
                         <th>Telepon</th>
                         <th>Produk</th>
+                        <th>CS</th>
                         <th>Status</th>
                         <th>Order ID</th>
                         <th>Tanggal</th>
@@ -59,7 +120,8 @@
                         <td><strong>{{ lead.name }}</strong></td>
                         <td>{{ lead.email }}</td>
                         <td>{{ lead.phone or '-' }}</td>
-                        <td>{{ lead.product_list.product_name }}</td>
+                        <td>{{ lead.product_list.product_name if lead.product_list else '-' }}</td>
+                        <td>{{ lead.sales_person_name or '-' }}</td>
                         <td>
                             {% if lead.status == 'follow_up' %}
                                 <span class="badge bg-warning text-dark badge-status">
@@ -105,11 +167,53 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <!-- Previous Button -->
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" 
+                       href="{{ url_for('leads', status=status_filter, product=product_filter, sales_person=sales_person_filter, date_from=date_from, date_to=date_to, page=pagination.prev_num) if pagination.has_prev else '#' }}">
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </a>
+                </li>
+                
+                <!-- Page Numbers -->
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link" 
+                               href="{{ url_for('leads', status=status_filter, product=product_filter, sales_person=sales_person_filter, date_from=date_from, date_to=date_to, page=page_num) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Next Button -->
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" 
+                       href="{{ url_for('leads', status=status_filter, product=product_filter, sales_person=sales_person_filter, date_from=date_from, date_to=date_to, page=pagination.next_num) if pagination.has_next else '#' }}">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+        
         {% else %}
         <div class="text-center py-5 text-muted">
             <i class="bi bi-inbox fs-1"></i>
             <p class="mt-2">
-                {% if status_filter == 'all' %}
+                {% if date_from or date_to or product_filter or sales_person_filter %}
+                    Tidak ada leads yang sesuai dengan filter yang dipilih
+                {% elif status_filter == 'all' %}
                     Belum ada leads
                 {% else %}
                     Tidak ada leads dengan status ini

@@ -355,17 +355,121 @@ def edit_product_list(list_id):
 @app.route('/leads')
 @login_required
 def leads():
-    """Leads management"""
+    """Leads management with pagination and filters"""
+    # Get filter parameters
     status_filter = request.args.get('status', 'all')
+    product_filter = request.args.get('product', '')
+    sales_person_filter = request.args.get('sales_person', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # Items per page
     
-    if status_filter == 'all':
-        leads_query = Lead.query
-    else:
-        leads_query = Lead.query.filter_by(status=status_filter)
+    # Debug logging
+    print(f"\n{'='*60}")
+    print(f"📋 LEADS PAGE - Filter Parameters:")
+    print(f"   Status: {status_filter}")
+    print(f"   Product: {product_filter}")
+    print(f"   Sales Person: {sales_person_filter}")
+    print(f"   Date From: {date_from}")
+    print(f"   Date To: {date_to}")
+    print(f"   Page: {page}")
+    print(f"{'='*60}\n")
     
-    leads_list = leads_query.order_by(Lead.created_at.desc()).all()
+    # Build query
+    leads_query = Lead.query
     
-    return render_template('leads.html', leads=leads_list, status_filter=status_filter)
+    # Status filter
+    if status_filter != 'all':
+        leads_query = leads_query.filter_by(status=status_filter)
+        print(f"✓ Applied status filter: {status_filter}")
+    
+    # Product filter (by product name or product list ID)
+    if product_filter:
+        # Try to find product list by name
+        product_lists = ProductList.query.filter(
+            ProductList.product_name.ilike(f'%{product_filter}%')
+        ).all()
+        
+        if product_lists:
+            product_ids = [p.id for p in product_lists]
+            leads_query = leads_query.filter(Lead.product_list_id.in_(product_ids))
+            print(f"✓ Applied product filter: {product_filter} (found {len(product_lists)} product lists)")
+        else:
+            print(f"⚠️  Product filter '{product_filter}' matched no product lists")
+    
+    # Sales person filter
+    if sales_person_filter:
+        leads_query = leads_query.filter(
+            Lead.sales_person_name.ilike(f'%{sales_person_filter}%')
+        )
+        print(f"✓ Applied sales person filter: {sales_person_filter}")
+    
+    # Date range filter
+    if date_from:
+        try:
+            from datetime import datetime
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+            leads_query = leads_query.filter(Lead.created_at >= date_from_obj)
+            print(f"✓ Applied date from filter: {date_from}")
+        except ValueError:
+            print(f"⚠️  Invalid date_from format: {date_from}")
+            pass
+    
+    if date_to:
+        try:
+            from datetime import datetime
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+            # Add 1 day to include the entire end date
+            from datetime import timedelta
+            date_to_obj = date_to_obj + timedelta(days=1)
+            leads_query = leads_query.filter(Lead.created_at < date_to_obj)
+            print(f"✓ Applied date to filter: {date_to}")
+        except ValueError:
+            print(f"⚠️  Invalid date_to format: {date_to}")
+            pass
+    
+    # Order by newest first
+    leads_query = leads_query.order_by(Lead.created_at.desc())
+    
+    # Count before pagination
+    total_before_pagination = leads_query.count()
+    print(f"\n📊 Query Results: {total_before_pagination} leads matched filters")
+    
+    # Paginate
+    pagination = leads_query.paginate(page=page, per_page=per_page, error_out=False)
+    leads_list = pagination.items
+    
+    print(f"📄 Page {page}: Showing {len(leads_list)} leads\n")
+    
+    # Get unique products and sales people from existing leads for filter dropdowns
+    unique_products = db.session.query(
+        ProductList.product_name
+    ).join(Lead).distinct().order_by(ProductList.product_name).all()
+    unique_products = [p[0] for p in unique_products if p[0]]
+    
+    unique_sales_people = db.session.query(
+        Lead.sales_person_name
+    ).filter(Lead.sales_person_name.isnot(None)).distinct().order_by(Lead.sales_person_name).all()
+    unique_sales_people = [s[0] for s in unique_sales_people if s[0]]
+    
+    print(f"🎯 Filter Options:")
+    print(f"   Unique Products: {unique_products}")
+    print(f"   Unique Sales People: {unique_sales_people}")
+    print(f"{'='*60}\n")
+    
+    return render_template(
+        'leads.html',
+        leads=leads_list,
+        pagination=pagination,
+        status_filter=status_filter,
+        product_filter=product_filter,
+        sales_person_filter=sales_person_filter,
+        date_from=date_from,
+        date_to=date_to,
+        unique_products=unique_products,
+        unique_sales_people=unique_sales_people
+    )
 
 @app.route('/leads/<int:lead_id>')
 @login_required
@@ -375,6 +479,64 @@ def lead_detail(lead_id):
     history = LeadHistory.query.filter_by(lead_id=lead_id).order_by(LeadHistory.created_at.desc()).all()
     
     return render_template('lead_detail.html', lead=lead, history=history)
+
+@app.route('/debug/leads-data')
+@login_required
+def debug_leads_data():
+    """Debug endpoint to check leads and sales person data"""
+    leads = Lead.query.all()
+    
+    debug_info = {
+        'total_leads': len(leads),
+        'leads_sample': [],
+        'unique_sales_people_from_db': [],
+        'sales_person_stats': {},
+        'product_lists_with_cs': []
+    }
+    
+    # Get sample leads
+    for lead in leads[:10]:  # First 10 leads
+        debug_info['leads_sample'].append({
+            'id': lead.id,
+            'order_id': lead.order_id,
+            'name': lead.name,
+            'email': lead.email,
+            'sales_person_name': lead.sales_person_name,
+            'sales_person_email': lead.sales_person_email,
+            'product_list_id': lead.product_list_id,
+            'product_name': lead.product_list.product_name if lead.product_list else None,
+            'status': lead.status,
+            'created_at': lead.created_at.isoformat() if lead.created_at else None
+        })
+    
+    # Get unique sales people from database (same query as in leads route)
+    unique_sp = db.session.query(
+        Lead.sales_person_name
+    ).filter(Lead.sales_person_name.isnot(None)).distinct().order_by(Lead.sales_person_name).all()
+    debug_info['unique_sales_people_from_db'] = [s[0] for s in unique_sp if s[0]]
+    
+    # Count leads per sales person
+    for sp_name in debug_info['unique_sales_people_from_db']:
+        count = Lead.query.filter_by(sales_person_name=sp_name).count()
+        debug_info['sales_person_stats'][sp_name] = count
+    
+    # Count leads with NULL sales_person_name
+    null_count = Lead.query.filter(Lead.sales_person_name.is_(None)).count()
+    debug_info['sales_person_stats']['NULL (no sales person)'] = null_count
+    
+    # Get product lists with their CS configuration
+    product_lists = ProductList.query.all()
+    for pl in product_lists:
+        debug_info['product_lists_with_cs'].append({
+            'id': pl.id,
+            'product_name': pl.product_name,
+            'sales_person_ids': pl.get_sales_person_ids_list(),
+            'sales_person_names': pl.get_sales_person_names_list(),
+            'sales_person_emails': pl.get_sales_person_emails_list(),
+            'is_for_all_sales': pl.is_for_all_sales()
+        })
+    
+    return jsonify(debug_info)
 
 @app.route('/leads/<int:lead_id>/test-not-closing', methods=['POST'])
 @login_required
