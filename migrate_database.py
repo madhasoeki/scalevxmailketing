@@ -32,12 +32,6 @@ def migrate():
             trans = connection.begin()  # Start transaction
             
             try:
-            
-            # Get database connection
-            connection = db.engine.connect()
-            trans = connection.begin()  # Start transaction
-            
-            try:
                 # List of migrations to perform
                 migrations = [
                     # ProductList table migrations
