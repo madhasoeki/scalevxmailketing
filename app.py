@@ -356,132 +356,114 @@ def edit_product_list(list_id):
 @login_required
 def leads():
     """Leads management with pagination and filters"""
-    # Get filter parameters
-    status_filter = request.args.get('status', 'all')
-    product_filter = request.args.get('product', '')
-    sales_person_filter = request.args.get('sales_person', '')
-    date_from = request.args.get('date_from', '')
-    date_to = request.args.get('date_to', '')
-    page = request.args.get('page', 1, type=int)
-    per_page = 20  # Items per page
-    
-    # Debug logging
-    print(f"\n{'='*60}")
-    print(f"📋 LEADS PAGE - Filter Parameters:")
-    print(f"   Status: {status_filter}")
-    print(f"   Product: {product_filter}")
-    print(f"   Sales Person: {sales_person_filter}")
-    print(f"   Date From: {date_from}")
-    print(f"   Date To: {date_to}")
-    print(f"   Page: {page}")
-    print(f"{'='*60}\n")
-    
-    # Build query
-    leads_query = Lead.query
-    
-    # Status filter
-    if status_filter != 'all':
-        leads_query = leads_query.filter_by(status=status_filter)
-        print(f"✓ Applied status filter: {status_filter}")
-    
-    # Product filter (by product name or product list ID)
-    if product_filter:
-        # Try to find product list by name
-        product_lists = ProductList.query.filter(
-            ProductList.product_name.ilike(f'%{product_filter}%')
-        ).all()
+    try:
+        # Get filter parameters
+        status_filter = request.args.get('status', 'all')
+        product_filter = request.args.get('product', '')
+        sales_person_filter = request.args.get('sales_person', '')
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = 20  # Items per page
         
-        if product_lists:
-            product_ids = [p.id for p in product_lists]
-            leads_query = leads_query.filter(Lead.product_list_id.in_(product_ids))
-            print(f"✓ Applied product filter: {product_filter} (found {len(product_lists)} product lists)")
-        else:
-            print(f"⚠️  Product filter '{product_filter}' matched no product lists")
-    
-    # Sales person filter
-    if sales_person_filter:
-        leads_query = leads_query.filter(
-            Lead.sales_person_name.ilike(f'%{sales_person_filter}%')
+        # Build query
+        leads_query = Lead.query
+        
+        # Status filter
+        if status_filter != 'all':
+            leads_query = leads_query.filter_by(status=status_filter)
+        
+        # Product filter (by product name or product list ID)
+        if product_filter:
+            # Try to find product list by name
+            product_lists = ProductList.query.filter(
+                ProductList.product_name.ilike(f'%{product_filter}%')
+            ).all()
+            
+            if product_lists:
+                product_ids = [p.id for p in product_lists]
+                leads_query = leads_query.filter(Lead.product_list_id.in_(product_ids))
+        
+        # Sales person filter
+        if sales_person_filter:
+            leads_query = leads_query.filter(
+                Lead.sales_person_name.ilike(f'%{sales_person_filter}%')
+            )
+        
+        # Date range filter
+        if date_from:
+            try:
+                from datetime import datetime
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+                leads_query = leads_query.filter(Lead.created_at >= date_from_obj)
+            except ValueError:
+                pass
+        
+        if date_to:
+            try:
+                from datetime import datetime
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+                # Add 1 day to include the entire end date
+                from datetime import timedelta
+                date_to_obj = date_to_obj + timedelta(days=1)
+                leads_query = leads_query.filter(Lead.created_at < date_to_obj)
+            except ValueError:
+                pass
+        
+        # Order by newest first
+        leads_query = leads_query.order_by(Lead.created_at.desc())
+        
+        # Paginate
+        pagination = leads_query.paginate(page=page, per_page=per_page, error_out=False)
+        leads_list = pagination.items
+        
+        # Get unique products from leads (only products that have leads)
+        unique_products = []
+        try:
+            unique_products_query = db.session.query(
+                ProductList.product_name
+            ).join(
+                Lead, Lead.product_list_id == ProductList.id
+            ).filter(
+                Lead.product_list_id.isnot(None)
+            ).distinct().order_by(ProductList.product_name).all()
+            unique_products = [p[0] for p in unique_products_query if p[0]]
+        except Exception as e:
+            print(f"Error getting unique products: {e}")
+            # Fallback: get all active product lists
+            unique_products = [p.product_name for p in ProductList.query.filter_by(is_active=True).all()]
+        
+        # Get unique sales people from leads (filter out NULL values)
+        unique_sales_people = []
+        try:
+            unique_sales_people_query = db.session.query(
+                Lead.sales_person_name
+            ).filter(
+                Lead.sales_person_name.isnot(None),
+                Lead.sales_person_name != ''
+            ).distinct().order_by(Lead.sales_person_name).all()
+            unique_sales_people = [s[0] for s in unique_sales_people_query if s[0]]
+        except Exception as e:
+            print(f"Error getting unique sales people: {e}")
+        
+        return render_template(
+            'leads.html',
+            leads=leads_list,
+            pagination=pagination,
+            status_filter=status_filter,
+            product_filter=product_filter,
+            sales_person_filter=sales_person_filter,
+            date_from=date_from,
+            date_to=date_to,
+            unique_products=unique_products,
+            unique_sales_people=unique_sales_people
         )
-        print(f"✓ Applied sales person filter: {sales_person_filter}")
-    
-    # Date range filter
-    if date_from:
-        try:
-            from datetime import datetime
-            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
-            leads_query = leads_query.filter(Lead.created_at >= date_from_obj)
-            print(f"✓ Applied date from filter: {date_from}")
-        except ValueError:
-            print(f"⚠️  Invalid date_from format: {date_from}")
-            pass
-    
-    if date_to:
-        try:
-            from datetime import datetime
-            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
-            # Add 1 day to include the entire end date
-            from datetime import timedelta
-            date_to_obj = date_to_obj + timedelta(days=1)
-            leads_query = leads_query.filter(Lead.created_at < date_to_obj)
-            print(f"✓ Applied date to filter: {date_to}")
-        except ValueError:
-            print(f"⚠️  Invalid date_to format: {date_to}")
-            pass
-    
-    # Order by newest first
-    leads_query = leads_query.order_by(Lead.created_at.desc())
-    
-    # Count before pagination
-    total_before_pagination = leads_query.count()
-    print(f"\n📊 Query Results: {total_before_pagination} leads matched filters")
-    
-    # Paginate
-    pagination = leads_query.paginate(page=page, per_page=per_page, error_out=False)
-    leads_list = pagination.items
-    
-    print(f"📄 Page {page}: Showing {len(leads_list)} leads\n")
-    
-    # Get unique products and sales people from existing leads for filter dropdowns
-    # Use subquery to get product_list_ids that have leads, then get their names
-    # This handles NULL product_list_id gracefully
-    unique_products_query = db.session.query(
-        ProductList.product_name
-    ).join(
-        Lead, Lead.product_list_id == ProductList.id
-    ).filter(
-        Lead.product_list_id.isnot(None)
-    ).distinct().order_by(ProductList.product_name).all()
-    unique_products = [p[0] for p in unique_products_query if p[0]]
-    
-    # Get unique sales people from leads (filter out NULL values)
-    unique_sales_people_query = db.session.query(
-        Lead.sales_person_name
-    ).filter(
-        Lead.sales_person_name.isnot(None),
-        Lead.sales_person_name != ''
-    ).distinct().order_by(Lead.sales_person_name).all()
-    unique_sales_people = [s[0] for s in unique_sales_people_query if s[0]]
-    
-    print(f"🎯 Filter Options:")
-    print(f"   Unique Products: {unique_products}")
-    print(f"   Unique Sales People: {unique_sales_people}")
-    print(f"   Total Leads with NULL product_list_id: {Lead.query.filter(Lead.product_list_id.is_(None)).count()}")
-    print(f"   Total Leads with NULL sales_person_name: {Lead.query.filter(Lead.sales_person_name.is_(None)).count()}")
-    print(f"{'='*60}\n")
-    
-    return render_template(
-        'leads.html',
-        leads=leads_list,
-        pagination=pagination,
-        status_filter=status_filter,
-        product_filter=product_filter,
-        sales_person_filter=sales_person_filter,
-        date_from=date_from,
-        date_to=date_to,
-        unique_products=unique_products,
-        unique_sales_people=unique_sales_people
-    )
+    except Exception as e:
+        print(f"❌ ERROR in leads route: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error loading leads page: {str(e)}', 'danger')
+        return redirect(url_for('index'))
 
 @app.route('/leads/<int:lead_id>')
 @login_required
