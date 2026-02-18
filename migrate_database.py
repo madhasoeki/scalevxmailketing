@@ -134,6 +134,56 @@ def migrate():
                 except Exception as e:
                     print(f"  ⚠ Warning during sales person migration: {str(e)}")
                 
+                # Drop UNIQUE constraint from product_id (allows one product for multiple CS)
+                print("\nRemoving UNIQUE constraint from product_id...")
+                try:
+                    # Check if table has the constraint by examining schema
+                    result = connection.execute(text("SELECT sql FROM sqlite_master WHERE type='table' AND name='product_list'"))
+                    schema = result.fetchone()
+                    
+                    if schema and 'UNIQUE' in schema[0] and 'product_id' in schema[0]:
+                        print("  ⚠ UNIQUE constraint detected - recreating table...")
+                        
+                        # Commit current transaction before schema changes
+                        trans.commit()
+                        trans = connection.begin()
+                        
+                        # Rename old table
+                        connection.execute(text("ALTER TABLE product_list RENAME TO product_list_old"))
+                        
+                        # Create new table without UNIQUE constraint
+                        connection.execute(text("""
+                            CREATE TABLE product_list (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                store_id VARCHAR(100) NOT NULL,
+                                store_name VARCHAR(255) NOT NULL,
+                                product_name VARCHAR(255) NOT NULL,
+                                product_id VARCHAR(100) NOT NULL,
+                                sales_person_ids TEXT,
+                                sales_person_names TEXT,
+                                sales_person_emails TEXT,
+                                mailketing_list_followup VARCHAR(100),
+                                mailketing_list_closing VARCHAR(100),
+                                mailketing_list_not_closing VARCHAR(100),
+                                is_active BOOLEAN DEFAULT 1,
+                                created_at DATETIME,
+                                updated_at DATETIME
+                            )
+                        """))
+                        
+                        # Copy data
+                        result = connection.execute(text("INSERT INTO product_list SELECT * FROM product_list_old"))
+                        rows = result.rowcount
+                        
+                        # Drop old table
+                        connection.execute(text("DROP TABLE product_list_old"))
+                        
+                        print(f"  ✓ Constraint removed, {rows} rows preserved")
+                    else:
+                        print("  ⊘ No UNIQUE constraint found (already removed or never existed)")
+                except Exception as e:
+                    print(f"  ⚠ Warning during constraint removal: {str(e)}")
+                
                 # Commit all changes
                 trans.commit()
                 

@@ -28,7 +28,7 @@ class ProductList(db.Model):
     store_id = db.Column(db.String(100), nullable=False)
     store_name = db.Column(db.String(255), nullable=False)
     product_name = db.Column(db.String(255), nullable=False)
-    product_id = db.Column(db.String(100), nullable=False, unique=True)
+    product_id = db.Column(db.String(100), nullable=False)  # Note: No unique constraint - one product can have multiple entries (different CS)
     # Store multiple sales persons as JSON arrays
     sales_person_ids = db.Column(db.Text, nullable=True)  # JSON array: ["id1", "id2"]
     sales_person_names = db.Column(db.Text, nullable=True)  # JSON array: ["Name 1", "Name 2"]
