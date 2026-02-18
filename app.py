@@ -943,10 +943,3 @@ def run_migrations():
         print(f"⚠️  [First Request] Migration failed: {str(e)}")
         import traceback
         traceback.print_exc()
-    )
-    scheduler.start()
-    
-    try:
-        app.run(debug=False, host='0.0.0.0', port=5000)
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
