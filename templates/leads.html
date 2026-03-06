@@ -111,7 +111,16 @@ endblock %} {% block content %}
           <select class="form-select" id="salesPerson" name="sales_person">
             <option value="">Semua CS</option>
             {% for sp in unique_sales_people %}
-            <option value="{{ sp }}" {% if sp == sales_person_filter %}selected{% endif %}>
+            <option
+              value="{{ sp }}"
+              {%
+              if
+              sp=""
+              ="sales_person_filter"
+              %}selected{%
+              endif
+              %}
+            >
               {{ sp }}
             </option>
             {% endfor %}
@@ -124,7 +133,16 @@ endblock %} {% block content %}
           <select class="form-select" id="product" name="product">
             <option value="">Semua Produk</option>
             {% for prod in unique_products %}
-            <option value="{{ prod }}" {% if prod == product_filter %}selected{% endif %}>
+            <option
+              value="{{ prod }}"
+              {%
+              if
+              prod=""
+              ="product_filter"
+              %}selected{%
+              endif
+              %}
+            >
               {{ prod }}
             </option>
             {% endfor %}
