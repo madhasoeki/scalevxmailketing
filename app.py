@@ -356,6 +356,11 @@ def edit_product_list(list_id):
 @login_required
 def leads():
     """Leads management with pagination and filters"""
+    # Initialize variables with defaults
+    expired_leads_count = 0
+    unique_products = []
+    unique_sales_people = []
+    
     try:
         # Get filter parameters
         status_filter = request.args.get('status', 'all')

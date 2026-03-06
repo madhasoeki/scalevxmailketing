@@ -42,7 +42,7 @@ endblock %} {% block content %}
 </ul>
 
 <!-- Bulk Action: Move Expired Leads -->
-{% if expired_leads_count > 0 %}
+{% if expired_leads_count|default(0) > 0 %}
 <div class="alert alert-warning alert-dismissible fade show" role="alert">
   <div class="d-flex align-items-center justify-content-between">
     <div>
