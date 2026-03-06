@@ -54,7 +54,7 @@ endblock %} {% block content %}
     <form
       method="POST"
       action="{{ url_for('bulk_move_expired_leads') }}"
-      onsubmit="return confirm('Yakin ingin memindahkan {{ expired_leads_count }} lead yang expired ke Tidak Closing?\n\nLead-lead ini akan otomatis dikirim ke Mailketing List \'Tidak Closing\'.')"
+      onsubmit="return confirm('Yakin ingin memindahkan {{ expired_leads_count }} lead yang expired ke Tidak Closing?\n\nLead-lead ini akan otomatis dikirim ke Mailketing List Tidak Closing.');"
     >
       <button type="submit" class="btn btn-warning">
         <i class="bi bi-arrow-right-circle"></i>
