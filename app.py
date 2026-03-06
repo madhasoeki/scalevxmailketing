@@ -446,6 +446,15 @@ def leads():
         except Exception as e:
             print(f"Error getting unique sales people: {e}")
         
+        # Get count of expired leads (7+ days in follow_up)
+        expired_leads_count = 0
+        try:
+            lead_service = LeadService(db)
+            expired_leads = lead_service.get_expired_follow_up_leads(days=7)
+            expired_leads_count = len(expired_leads)
+        except Exception as e:
+            print(f"Error getting expired leads count: {e}")
+        
         return render_template(
             'leads.html',
             leads=leads_list,
@@ -456,7 +465,8 @@ def leads():
             date_from=date_from,
             date_to=date_to,
             unique_products=unique_products,
-            unique_sales_people=unique_sales_people
+            unique_sales_people=unique_sales_people,
+            expired_leads_count=expired_leads_count
         )
     except Exception as e:
         print(f"❌ ERROR in leads route: {str(e)}")
@@ -531,6 +541,85 @@ def debug_leads_data():
         })
     
     return jsonify(debug_info)
+
+@app.route('/leads/bulk-move-expired', methods=['POST'])
+@login_required
+def bulk_move_expired_leads():
+    """Bulk move all expired leads (7+ days) to not_closing and send to Mailketing"""
+    try:
+        lead_service = LeadService(db)
+        expired_leads = lead_service.get_expired_follow_up_leads(days=7)
+        
+        if not expired_leads:
+            flash('Tidak ada lead yang sudah lebih dari 7 hari di Follow Up', 'info')
+            return redirect(url_for('leads'))
+        
+        print(f"\n{'='*60}")
+        print(f"📦 BULK MOVE: Processing {len(expired_leads)} expired leads")
+        print(f"{'='*60}\n")
+        
+        success_count = 0
+        failed_count = 0
+        sent_to_mailketing_count = 0
+        
+        for lead in expired_leads:
+            try:
+                print(f"Processing: {lead.email} ({lead.days_in_follow_up()} days)")
+                
+                # Move to not closing
+                lead_service.move_to_not_closing(lead)
+                success_count += 1
+                print(f"  ✓ Moved to not_closing")
+                
+                # Send to Not Closing list
+                product_list = ProductList.query.get(lead.product_list_id)
+                if product_list and product_list.mailketing_list_not_closing:
+                    settings_obj = Settings.query.first()
+                    if settings_obj and settings_obj.mailketing_api_key:
+                        mailketing = MailketingService(settings_obj.mailketing_api_key)
+                        result = mailketing.add_subscriber(
+                            list_id=product_list.mailketing_list_not_closing,
+                            email=lead.email,
+                            first_name=lead.name,
+                            mobile=lead.phone
+                        )
+                        
+                        if result:
+                            lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_not_closing)
+                            sent_to_mailketing_count += 1
+                            print(f"  ✓ Sent to Mailketing list: {product_list.mailketing_list_not_closing}")
+                        else:
+                            print(f"  ⚠️  Failed to send to Mailketing")
+                else:
+                    print(f"  ⚠️  No Not Closing list configured")
+                
+            except Exception as e:
+                failed_count += 1
+                print(f"  ❌ Error processing lead {lead.id}: {str(e)}")
+        
+        print(f"\n{'='*60}")
+        print(f"✅ Bulk Move Complete!")
+        print(f"   Successfully moved: {success_count}")
+        print(f"   Sent to Mailketing: {sent_to_mailketing_count}")
+        print(f"   Failed: {failed_count}")
+        print(f"{'='*60}\n")
+        
+        # Show success message
+        if success_count > 0:
+            flash(f'✅ Berhasil memindahkan {success_count} lead ke Tidak Closing! ({sent_to_mailketing_count} dikirim ke Mailketing)', 'success')
+        if failed_count > 0:
+            flash(f'⚠ {failed_count} lead gagal diproses', 'warning')
+        
+        return redirect(url_for('leads', status='follow_up'))
+        
+    except Exception as e:
+        print(f"\n{'!'*60}")
+        print(f"❌ ERROR in bulk move: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'!'*60}\n")
+        flash(f'❌ Error: {str(e)}', 'danger')
+        return redirect(url_for('leads'))
 
 @app.route('/leads/<int:lead_id>/test-not-closing', methods=['POST'])
 @login_required
