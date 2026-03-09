@@ -189,6 +189,9 @@ def settings():
         scalev_api_key = request.form.get('scalev_api_key')
         scalev_webhook_secret = request.form.get('scalev_webhook_secret')
         mailketing_api_key = request.form.get('mailketing_api_key')
+        telegram_bot_token = request.form.get('telegram_bot_token')
+        telegram_chat_id = request.form.get('telegram_chat_id')
+        telegram_enabled = request.form.get('telegram_enabled') == '1'
         
         if not settings_obj:
             settings_obj = Settings()
@@ -197,6 +200,9 @@ def settings():
         settings_obj.scalev_api_key = scalev_api_key
         settings_obj.scalev_webhook_secret = scalev_webhook_secret
         settings_obj.mailketing_api_key = mailketing_api_key
+        settings_obj.telegram_bot_token = telegram_bot_token
+        settings_obj.telegram_chat_id = telegram_chat_id
+        settings_obj.telegram_enabled = telegram_enabled
         settings_obj.updated_at = get_wib_now_naive()
         
         db.session.commit()
@@ -1151,6 +1157,219 @@ def get_scalev_store_sales_people(store_id):
         scalev = ScalevService(settings_obj.scalev_api_key)
         sales_people = scalev.get_store_sales_people(store_id)
         return jsonify({'success': True, 'sales_people': sales_people})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+# ============================================================================
+# MAILKETING WEBHOOK ENDPOINTS
+# ============================================================================
+
+@app.route('/webhooks/mailketing/bounce', methods=['POST'])
+def mailketing_webhook_bounce():
+    """Mailketing bounce webhook endpoint"""
+    try:
+        data = request.json
+        
+        if not data or data.get('type') != 'bounce':
+            return jsonify({'success': False, 'error': 'Invalid event type'}), 400
+        
+        email = data.get('email')
+        reason = data.get('reason', 'Unknown reason')
+        date = data.get('date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        
+        print(f"\n🚫 Bounce Event Received")
+        print(f"   Email: {email}")
+        print(f"   Reason: {reason}")
+        print(f"   Date: {date}")
+        
+        # Send Telegram notification if enabled
+        settings_obj = Settings.query.first()
+        if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
+            from services.telegram_service import TelegramService
+            telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
+            telegram.send_bounce_notification(email, reason, date)
+        
+        return jsonify({'success': True, 'message': 'Bounce event processed'}), 200
+        
+    except Exception as e:
+        print(f"❌ Error processing bounce webhook: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/webhooks/mailketing/open', methods=['POST'])
+def mailketing_webhook_open():
+    """Mailketing email open webhook endpoint"""
+    try:
+        data = request.json
+        
+        if not data or data.get('type') != 'emailopen':
+            return jsonify({'success': False, 'error': 'Invalid event type'}), 400
+        
+        email = data.get('email')
+        date = data.get('date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        
+        print(f"\n👁️ Email Open Event Received")
+        print(f"   Email: {email}")
+        print(f"   Date: {date}")
+        
+        # Send Telegram notification if enabled
+        settings_obj = Settings.query.first()
+        if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
+            from services.telegram_service import TelegramService
+            telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
+            telegram.send_email_open_notification(email, date)
+        
+        return jsonify({'success': True, 'message': 'Email open event processed'}), 200
+        
+    except Exception as e:
+        print(f"❌ Error processing email open webhook: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/webhooks/mailketing/click', methods=['POST'])
+def mailketing_webhook_click():
+    """Mailketing link click webhook endpoint"""
+    try:
+        data = request.json
+        
+        if not data or data.get('type') != 'emailclick':
+            return jsonify({'success': False, 'error': 'Invalid event type'}), 400
+        
+        email = data.get('email')
+        link_clicked = data.get('link_clicked', 'Unknown link')
+        date = data.get('date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        
+        print(f"\n🖱️ Link Click Event Received")
+        print(f"   Email: {email}")
+        print(f"   Link: {link_clicked}")
+        print(f"   Date: {date}")
+        
+        # Send Telegram notification if enabled
+        settings_obj = Settings.query.first()
+        if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
+            from services.telegram_service import TelegramService
+            telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
+            telegram.send_link_click_notification(email, link_clicked, date)
+        
+        return jsonify({'success': True, 'message': 'Link click event processed'}), 200
+        
+    except Exception as e:
+        print(f"❌ Error processing link click webhook: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/webhooks/mailketing/unsubscribe', methods=['POST'])
+def mailketing_webhook_unsubscribe():
+    """Mailketing unsubscribe webhook endpoint"""
+    try:
+        data = request.json
+        
+        if not data or data.get('type') != 'unsubscribe':
+            return jsonify({'success': False, 'error': 'Invalid event type'}), 400
+        
+        email = data.get('email')
+        date = data.get('date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        
+        print(f"\n❌ Unsubscribe Event Received")
+        print(f"   Email: {email}")
+        print(f"   Date: {date}")
+        
+        # Send Telegram notification if enabled
+        settings_obj = Settings.query.first()
+        if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
+            from services.telegram_service import TelegramService
+            telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
+            telegram.send_unsubscribe_notification(email, date)
+        
+        return jsonify({'success': True, 'message': 'Unsubscribe event processed'}), 200
+        
+    except Exception as e:
+        print(f"❌ Error processing unsubscribe webhook: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/webhooks/mailketing/newsubscriber', methods=['POST'])
+def mailketing_webhook_newsubscriber():
+    """Mailketing new subscriber webhook endpoint (optional)"""
+    try:
+        data = request.json
+        
+        if not data or data.get('type') != 'newsubscriber':
+            return jsonify({'success': False, 'error': 'Invalid event type'}), 400
+        
+        email = data.get('email')
+        first_name = data.get('first_name', '')
+        last_name = data.get('last_name', '')
+        mobile = data.get('mobile', '')
+        date = data.get('date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        
+        print(f"\n✅ New Subscriber Event Received")
+        print(f"   Email: {email}")
+        print(f"   Name: {first_name} {last_name}")
+        print(f"   Mobile: {mobile}")
+        print(f"   Date: {date}")
+        
+        # Send Telegram notification if enabled
+        settings_obj = Settings.query.first()
+        if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
+            from services.telegram_service import TelegramService
+            telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
+            telegram.send_new_subscriber_notification(email, first_name, last_name, mobile, date)
+        
+        return jsonify({'success': True, 'message': 'New subscriber event processed'}), 200
+        
+    except Exception as e:
+        print(f"❌ Error processing new subscriber webhook: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================================================
+# TELEGRAM TEST ENDPOINT
+# ============================================================================
+
+@app.route('/api/test-telegram', methods=['POST'])
+@login_required
+def test_telegram():
+    """Test Telegram bot connection"""
+    bot_token = request.json.get('bot_token')
+    chat_id = request.json.get('chat_id')
+    
+    if not bot_token or not chat_id:
+        return jsonify({'success': False, 'message': 'Bot token and chat ID are required'}), 400
+    
+    try:
+        from services.telegram_service import TelegramService
+        telegram = TelegramService(bot_token, chat_id)
+        
+        # Test connection
+        success, message = telegram.test_connection()
+        
+        if success:
+            # Send test notification
+            test_message = f"""
+🎉 <b>Test Notification</b>
+
+Selamat! Bot Telegram Anda berhasil terhubung dengan ScaleV x Mailketing.
+
+Notifikasi akan dikirim untuk event berikut:
+• 🚫 Email Bounce
+• 👁️ Email Open
+• 🖱️ Link Click
+• ❌ Unsubscribe
+• ✅ New Subscriber (optional)
+
+Bot: {message}
+"""
+            telegram.send_message(test_message.strip())
+            return jsonify({'success': True, 'message': f'Connected! {message}'})
+        else:
+            return jsonify({'success': False, 'message': message}), 400
+            
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
 

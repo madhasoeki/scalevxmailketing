@@ -16,6 +16,10 @@ class Settings(db.Model):
     scalev_api_key = db.Column(db.String(255), nullable=True)
     scalev_webhook_secret = db.Column(db.String(255), nullable=True)
     mailketing_api_key = db.Column(db.String(255), nullable=True)
+    # Telegram notification settings
+    telegram_bot_token = db.Column(db.String(255), nullable=True)
+    telegram_chat_id = db.Column(db.String(100), nullable=True)
+    telegram_enabled = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=get_wib_now)
     updated_at = db.Column(db.DateTime, default=get_wib_now, onupdate=get_wib_now)
     

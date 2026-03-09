@@ -7,3 +7,4 @@ env/
 .vscode/
 .idea/
 *.log
+TELEGRAM_SETUP.md

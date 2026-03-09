@@ -86,6 +86,77 @@
                         </div>
                     </div>
                     
+                    <hr>
+                    
+                    <!-- Telegram Notification Settings -->
+                    <div class="mb-4">
+                        <h6 class="text-info mb-3">
+                            <i class="bi bi-telegram"></i> Telegram Notifications
+                        </h6>
+                        <p class="small text-muted">
+                            Dapatkan notifikasi real-time ke Telegram untuk setiap event dari Mailketing
+                        </p>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input 
+                                    class="form-check-input" 
+                                    type="checkbox" 
+                                    id="telegram_enabled" 
+                                    name="telegram_enabled"
+                                    value="1"
+                                    {% if settings and settings.telegram_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="telegram_enabled">
+                                    <strong>Aktifkan Notifikasi Telegram</strong>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="telegram_bot_token" class="form-label">Bot Token</label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="telegram_bot_token" 
+                                name="telegram_bot_token"
+                                value="{{ settings.telegram_bot_token if settings else '' }}"
+                                placeholder="Masukkan Telegram Bot Token">
+                            <small class="form-text text-muted">
+                                Dapatkan token dari <a href="https://t.me/BotFather" target="_blank">@BotFather</a>
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="telegram_chat_id" class="form-label">Chat ID</label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="telegram_chat_id" 
+                                    name="telegram_chat_id"
+                                    value="{{ settings.telegram_chat_id if settings else '' }}"
+                                    placeholder="Masukkan Chat ID (contoh: 123456789)">
+                                <button class="btn btn-outline-secondary" type="button" id="testTelegramBtn">
+                                    <i class="bi bi-send"></i> Test
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">
+                                Dapatkan Chat ID dari <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a>
+                            </small>
+                            <div id="telegramTestResult" class="mt-2"></div>
+                        </div>
+                        
+                        <div class="alert alert-info" role="alert">
+                            <small>
+                                <strong>Event yang akan dikirim notifikasi:</strong><br>
+                                • 🚫 Email Bounce<br>
+                                • 👁️ Email Open<br>
+                                • 🖱️ Link Click<br>
+                                • ❌ Unsubscribe
+                            </small>
+                        </div>
+                    </div>
+                    
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg">
                             <i class="bi bi-save"></i> Simpan Pengaturan
@@ -100,15 +171,53 @@
         <!-- Webhook URL Info -->
         <div class="card mb-3">
             <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-link-45deg"></i> Webhook URL</h6>
+                <h6 class="mb-0"><i class="bi bi-link-45deg"></i> Webhook URLs</h6>
             </div>
             <div class="card-body">
-                <p class="small mb-2">Gunakan URL ini untuk webhook ScaleV:</p>
-                <div class="alert alert-secondary mb-0">
-                    <code id="webhookUrl">{{ request.url_root }}webhook/scalev</code>
-                    <button class="btn btn-sm btn-link" onclick="copyWebhookUrl()">
+                <p class="small mb-2"><strong>ScaleV Webhook:</strong></p>
+                <div class="alert alert-secondary mb-3">
+                    <code style="font-size: 0.8rem;">{{ request.url_root }}webhook/scalev</code>
+                    <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhook/scalev')">
                         <i class="bi bi-clipboard"></i>
                     </button>
+                </div>
+                
+                <p class="small mb-2"><strong>Mailketing Webhooks:</strong></p>
+                <div class="mb-2">
+                    <small class="text-muted">Bounce:</small>
+                    <div class="alert alert-secondary py-1 px-2 mb-1">
+                        <code style="font-size: 0.75rem;">{{ request.url_root }}webhooks/mailketing/bounce</code>
+                        <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/bounce')">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">Email Open:</small>
+                    <div class="alert alert-secondary py-1 px-2 mb-1">
+                        <code style="font-size: 0.75rem;">{{ request.url_root }}webhooks/mailketing/open</code>
+                        <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/open')">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">Link Click:</small>
+                    <div class="alert alert-secondary py-1 px-2 mb-1">
+                        <code style="font-size: 0.75rem;">{{ request.url_root }}webhooks/mailketing/click</code>
+                        <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/click')">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">Unsubscribe:</small>
+                    <div class="alert alert-secondary py-1 px-2 mb-0">
+                        <code style="font-size: 0.75rem;">{{ request.url_root }}webhooks/mailketing/unsubscribe</code>
+                        <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/unsubscribe')">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -144,11 +253,15 @@
 
 {% block extra_js %}
 <script>
-function copyWebhookUrl() {
-    const url = document.getElementById('webhookUrl').textContent;
-    navigator.clipboard.writeText(url).then(() => {
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
         alert('URL copied to clipboard!');
     });
+}
+
+// Legacy function for backward compatibility
+function copyWebhookUrl() {
+    copyToClipboard('{{ request.url_root }}webhook/scalev');
 }
 
 // Test ScaleV Connection
@@ -211,6 +324,49 @@ document.getElementById('testMailketingBtn').addEventListener('click', function(
         if (data.success) {
             resultDiv.innerHTML = `<div class="alert alert-success alert-sm mb-0">
                 <i class="bi bi-check-circle"></i> Koneksi berhasil! Ditemukan ${data.lists_count} lists.
+            </div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+                <i class="bi bi-x-circle"></i> ${data.message}
+            </div>`;
+        }
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+            <i class="bi bi-x-circle"></i> Error: ${error.message}
+        </div>`;
+    });
+});
+
+// Test Telegram Connection
+document.getElementById('testTelegramBtn').addEventListener('click', function() {
+    const botToken = document.getElementById('telegram_bot_token').value;
+    const chatId = document.getElementById('telegram_chat_id').value;
+    
+    if (!botToken || !chatId) {
+        alert('Masukkan Bot Token dan Chat ID terlebih dahulu');
+        return;
+    }
+    
+    const resultDiv = document.getElementById('telegramTestResult');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Testing...';
+    
+    fetch('/api/test-telegram', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            bot_token: botToken,
+            chat_id: chatId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success alert-sm mb-0">
+                <i class="bi bi-check-circle"></i> ${data.message}<br>
+                <small>Cek Telegram Anda untuk melihat pesan test!</small>
             </div>`;
         } else {
             resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
