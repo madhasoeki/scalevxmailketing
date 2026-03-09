@@ -113,6 +113,22 @@
                         </div>
                         
                         <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input 
+                                    class="form-check-input" 
+                                    type="checkbox" 
+                                    id="telegram_debug_mode" 
+                                    name="telegram_debug_mode"
+                                    value="1"
+                                    {% if settings and settings.telegram_debug_mode %}checked{% endif %}>
+                                <label class="form-check-label" for="telegram_debug_mode">
+                                    <strong>🐛 Debug Mode</strong>
+                                    <small class="text-muted d-block">Kirim full JSON payload dari webhook untuk melihat semua data yang tersedia</small>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
                             <label for="telegram_bot_token" class="form-label">Bot Token</label>
                             <input 
                                 type="text" 

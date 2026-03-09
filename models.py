@@ -20,6 +20,7 @@ class Settings(db.Model):
     telegram_bot_token = db.Column(db.String(255), nullable=True)
     telegram_chat_id = db.Column(db.String(100), nullable=True)
     telegram_enabled = db.Column(db.Boolean, default=False)
+    telegram_debug_mode = db.Column(db.Boolean, default=False)  # Send full webhook payload for debugging
     created_at = db.Column(db.DateTime, default=get_wib_now)
     updated_at = db.Column(db.DateTime, default=get_wib_now, onupdate=get_wib_now)
     

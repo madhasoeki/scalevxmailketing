@@ -192,6 +192,7 @@ def settings():
         telegram_bot_token = request.form.get('telegram_bot_token')
         telegram_chat_id = request.form.get('telegram_chat_id')
         telegram_enabled = request.form.get('telegram_enabled') == '1'
+        telegram_debug_mode = request.form.get('telegram_debug_mode') == '1'
         
         if not settings_obj:
             settings_obj = Settings()
@@ -203,6 +204,7 @@ def settings():
         settings_obj.telegram_bot_token = telegram_bot_token
         settings_obj.telegram_chat_id = telegram_chat_id
         settings_obj.telegram_enabled = telegram_enabled
+        settings_obj.telegram_debug_mode = telegram_debug_mode
         settings_obj.updated_at = get_wib_now_naive()
         
         db.session.commit()
@@ -1181,13 +1183,29 @@ def mailketing_webhook_bounce():
         print(f"   Email: {email}")
         print(f"   Reason: {reason}")
         print(f"   Date: {date}")
+        print(f"   Full payload: {json.dumps(data, indent=2)}")
         
         # Send Telegram notification if enabled
         settings_obj = Settings.query.first()
         if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
             from services.telegram_service import TelegramService
             telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
-            telegram.send_bounce_notification(email, reason, date)
+            
+            # Check if debug mode is enabled
+            if settings_obj.telegram_debug_mode:
+                # Send full JSON payload for debugging
+                debug_message = f"""
+🐛 <b>DEBUG: Bounce Event</b>
+
+<b>Full Webhook Payload:</b>
+<pre>{json.dumps(data, indent=2, ensure_ascii=False)}</pre>
+
+Gunakan data ini untuk memilih field yang ingin ditampilkan di notifikasi.
+"""
+                telegram.send_message(debug_message.strip())
+            else:
+                # Send normal formatted notification
+                telegram.send_bounce_notification(email, reason, date)
         
         return jsonify({'success': True, 'message': 'Bounce event processed'}), 200
         
@@ -1212,13 +1230,24 @@ def mailketing_webhook_open():
         print(f"\n👁️ Email Open Event Received")
         print(f"   Email: {email}")
         print(f"   Date: {date}")
+        print(f"   Full payload: {json.dumps(data, indent=2)}")
         
         # Send Telegram notification if enabled
         settings_obj = Settings.query.first()
         if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
             from services.telegram_service import TelegramService
             telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
-            telegram.send_email_open_notification(email, date)
+            
+            if settings_obj.telegram_debug_mode:
+                debug_message = f"""
+🐛 <b>DEBUG: Email Open Event</b>
+
+<b>Full Webhook Payload:</b>
+<pre>{json.dumps(data, indent=2, ensure_ascii=False)}</pre>
+"""
+                telegram.send_message(debug_message.strip())
+            else:
+                telegram.send_email_open_notification(email, date)
         
         return jsonify({'success': True, 'message': 'Email open event processed'}), 200
         
@@ -1245,13 +1274,24 @@ def mailketing_webhook_click():
         print(f"   Email: {email}")
         print(f"   Link: {link_clicked}")
         print(f"   Date: {date}")
+        print(f"   Full payload: {json.dumps(data, indent=2)}")
         
         # Send Telegram notification if enabled
         settings_obj = Settings.query.first()
         if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
             from services.telegram_service import TelegramService
             telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
-            telegram.send_link_click_notification(email, link_clicked, date)
+            
+            if settings_obj.telegram_debug_mode:
+                debug_message = f"""
+🐛 <b>DEBUG: Link Click Event</b>
+
+<b>Full Webhook Payload:</b>
+<pre>{json.dumps(data, indent=2, ensure_ascii=False)}</pre>
+"""
+                telegram.send_message(debug_message.strip())
+            else:
+                telegram.send_link_click_notification(email, link_clicked, date)
         
         return jsonify({'success': True, 'message': 'Link click event processed'}), 200
         
@@ -1276,13 +1316,24 @@ def mailketing_webhook_unsubscribe():
         print(f"\n❌ Unsubscribe Event Received")
         print(f"   Email: {email}")
         print(f"   Date: {date}")
+        print(f"   Full payload: {json.dumps(data, indent=2)}")
         
         # Send Telegram notification if enabled
         settings_obj = Settings.query.first()
         if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
             from services.telegram_service import TelegramService
             telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
-            telegram.send_unsubscribe_notification(email, date)
+            
+            if settings_obj.telegram_debug_mode:
+                debug_message = f"""
+🐛 <b>DEBUG: Unsubscribe Event</b>
+
+<b>Full Webhook Payload:</b>
+<pre>{json.dumps(data, indent=2, ensure_ascii=False)}</pre>
+"""
+                telegram.send_message(debug_message.strip())
+            else:
+                telegram.send_unsubscribe_notification(email, date)
         
         return jsonify({'success': True, 'message': 'Unsubscribe event processed'}), 200
         
@@ -1312,13 +1363,24 @@ def mailketing_webhook_newsubscriber():
         print(f"   Name: {first_name} {last_name}")
         print(f"   Mobile: {mobile}")
         print(f"   Date: {date}")
+        print(f"   Full payload: {json.dumps(data, indent=2)}")
         
         # Send Telegram notification if enabled
         settings_obj = Settings.query.first()
         if settings_obj and settings_obj.telegram_enabled and settings_obj.telegram_bot_token and settings_obj.telegram_chat_id:
             from services.telegram_service import TelegramService
             telegram = TelegramService(settings_obj.telegram_bot_token, settings_obj.telegram_chat_id)
-            telegram.send_new_subscriber_notification(email, first_name, last_name, mobile, date)
+            
+            if settings_obj.telegram_debug_mode:
+                debug_message = f"""
+🐛 <b>DEBUG: New Subscriber Event</b>
+
+<b>Full Webhook Payload:</b>
+<pre>{json.dumps(data, indent=2, ensure_ascii=False)}</pre>
+"""
+                telegram.send_message(debug_message.strip())
+            else:
+                telegram.send_new_subscriber_notification(email, first_name, last_name, mobile, date)
         
         return jsonify({'success': True, 'message': 'New subscriber event processed'}), 200
         

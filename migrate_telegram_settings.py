@@ -43,6 +43,15 @@ def migrate():
                     print("✓ Added telegram_enabled column")
                 else:
                     print("✓ telegram_enabled column already exists")
+                
+                # Add telegram_debug_mode column if not exists
+                if 'telegram_debug_mode' not in columns:
+                    print("Adding telegram_debug_mode column...")
+                    conn.execute(text("ALTER TABLE settings ADD COLUMN telegram_debug_mode BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                    print("✓ Added telegram_debug_mode column")
+                else:
+                    print("✓ telegram_debug_mode column already exists")
             
             print("\n✅ Migration completed successfully!")
             
