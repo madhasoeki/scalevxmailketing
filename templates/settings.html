@@ -1,400 +1,486 @@
-{% extends "base.html" %}
-
-{% block title %}Settings - ScaleV x Mailketing{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}Settings - ScaleV x Mailketing{%
+endblock %} {% block content %}
 <div class="mb-4">
-    <h2 class="mb-1">Pengaturan API</h2>
-    <p class="text-muted">Hubungkan akun ScaleV dan Mailketing Anda</p>
+  <h2 class="mb-1">Pengaturan API</h2>
+  <p class="text-muted">Hubungkan akun ScaleV dan Mailketing Anda</p>
 </div>
 
 <div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header bg-white">
-                <h5 class="mb-0"><i class="bi bi-key"></i> API Keys & Configuration</h5>
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="bi bi-key"></i> API Keys & Configuration</h5>
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          <!-- ScaleV Settings -->
+          <div class="mb-4">
+            <h6 class="text-primary mb-3">
+              <i class="bi bi-box-seam"></i> ScaleV API
+            </h6>
+
+            <div class="mb-3">
+              <label for="scalev_api_key" class="form-label">API Key</label>
+              <div class="input-group">
+                <input
+                  type="text"
+                  class="form-control"
+                  id="scalev_api_key"
+                  name="scalev_api_key"
+                  value="{{ settings.scalev_api_key if settings else '' }}"
+                  placeholder="Masukkan ScaleV API Key"
+                />
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  id="testScalevBtn"
+                >
+                  <i class="bi bi-check-circle"></i> Test
+                </button>
+              </div>
+              <small class="form-text text-muted">
+                Dapatkan API key dari dashboard ScaleV Anda
+              </small>
+              <div id="scalevTestResult" class="mt-2"></div>
             </div>
-            <div class="card-body">
-                <form method="POST">
-                    <!-- ScaleV Settings -->
-                    <div class="mb-4">
-                        <h6 class="text-primary mb-3">
-                            <i class="bi bi-box-seam"></i> ScaleV API
-                        </h6>
-                        
-                        <div class="mb-3">
-                            <label for="scalev_api_key" class="form-label">API Key</label>
-                            <div class="input-group">
-                                <input 
-                                    type="text" 
-                                    class="form-control" 
-                                    id="scalev_api_key" 
-                                    name="scalev_api_key"
-                                    value="{{ settings.scalev_api_key if settings else '' }}"
-                                    placeholder="Masukkan ScaleV API Key">
-                                <button class="btn btn-outline-secondary" type="button" id="testScalevBtn">
-                                    <i class="bi bi-check-circle"></i> Test
-                                </button>
-                            </div>
-                            <small class="form-text text-muted">
-                                Dapatkan API key dari dashboard ScaleV Anda
-                            </small>
-                            <div id="scalevTestResult" class="mt-2"></div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="scalev_webhook_secret" class="form-label">Webhook Secret</label>
-                            <input 
-                                type="text" 
-                                class="form-control" 
-                                id="scalev_webhook_secret" 
-                                name="scalev_webhook_secret"
-                                value="{{ settings.scalev_webhook_secret if settings else '' }}"
-                                placeholder="Masukkan Webhook Secret">
-                            <small class="form-text text-muted">
-                                Secret key untuk memverifikasi webhook dari ScaleV
-                            </small>
-                        </div>
-                    </div>
-                    
-                    <hr>
-                    
-                    <!-- Mailketing Settings -->
-                    <div class="mb-4">
-                        <h6 class="text-success mb-3">
-                            <i class="bi bi-envelope"></i> Mailketing API
-                        </h6>
-                        
-                        <div class="mb-3">
-                            <label for="mailketing_api_key" class="form-label">API Key</label>
-                            <div class="input-group">
-                                <input 
-                                    type="text" 
-                                    class="form-control" 
-                                    id="mailketing_api_key" 
-                                    name="mailketing_api_key"
-                                    value="{{ settings.mailketing_api_key if settings else '' }}"
-                                    placeholder="Masukkan Mailketing API Key">
-                                <button class="btn btn-outline-secondary" type="button" id="testMailketingBtn">
-                                    <i class="bi bi-check-circle"></i> Test
-                                </button>
-                            </div>
-                            <small class="form-text text-muted">
-                                Dapatkan API key dari dashboard Mailketing Anda
-                            </small>
-                            <div id="mailketingTestResult" class="mt-2"></div>
-                        </div>
-                    </div>
-                    
-                    <hr>
-                    
-                    <!-- Telegram Notification Settings -->
-                    <div class="mb-4">
-                        <h6 class="text-info mb-3">
-                            <i class="bi bi-telegram"></i> Telegram Notifications
-                        </h6>
-                        <p class="small text-muted">
-                            Dapatkan notifikasi real-time ke Telegram untuk setiap event dari Mailketing
-                        </p>
-                        
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input 
-                                    class="form-check-input" 
-                                    type="checkbox" 
-                                    id="telegram_enabled" 
-                                    name="telegram_enabled"
-                                    value="1"
-                                    {% if settings and settings.telegram_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="telegram_enabled">
-                                    <strong>Aktifkan Notifikasi Telegram</strong>
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input 
-                                    class="form-check-input" 
-                                    type="checkbox" 
-                                    id="telegram_debug_mode" 
-                                    name="telegram_debug_mode"
-                                    value="1"
-                                    {% if settings and settings.telegram_debug_mode %}checked{% endif %}>
-                                <label class="form-check-label" for="telegram_debug_mode">
-                                    <strong>🐛 Debug Mode</strong>
-                                    <small class="text-muted d-block">Kirim full JSON payload dari webhook untuk melihat semua data yang tersedia</small>
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="telegram_bot_token" class="form-label">Bot Token</label>
-                            <input 
-                                type="text" 
-                                class="form-control" 
-                                id="telegram_bot_token" 
-                                name="telegram_bot_token"
-                                value="{{ settings.telegram_bot_token if settings else '' }}"
-                                placeholder="Masukkan Telegram Bot Token">
-                            <small class="form-text text-muted">
-                                Dapatkan token dari <a href="https://t.me/BotFather" target="_blank">@BotFather</a>
-                            </small>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="telegram_chat_id" class="form-label">Chat ID</label>
-                            <div class="input-group">
-                                <input 
-                                    type="text" 
-                                    class="form-control" 
-                                    id="telegram_chat_id" 
-                                    name="telegram_chat_id"
-                                    value="{{ settings.telegram_chat_id if settings else '' }}"
-                                    placeholder="Masukkan Chat ID (contoh: 123456789)">
-                                <button class="btn btn-outline-secondary" type="button" id="testTelegramBtn">
-                                    <i class="bi bi-send"></i> Test
-                                </button>
-                            </div>
-                            <small class="form-text text-muted">
-                                Dapatkan Chat ID dari <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a>
-                            </small>
-                            <div id="telegramTestResult" class="mt-2"></div>
-                        </div>
-                        
-                        <div class="alert alert-info" role="alert">
-                            <small>
-                                <strong>Event yang akan dikirim notifikasi:</strong><br>
-                                • 🚫 Email Bounce<br>
-                                • 👁️ Email Open<br>
-                                • 🖱️ Link Click<br>
-                                • ❌ Unsubscribe
-                            </small>
-                        </div>
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-save"></i> Simpan Pengaturan
-                        </button>
-                    </div>
-                </form>
+
+            <div class="mb-3">
+              <label for="scalev_webhook_secret" class="form-label"
+                >Webhook Secret</label
+              >
+              <input
+                type="text"
+                class="form-control"
+                id="scalev_webhook_secret"
+                name="scalev_webhook_secret"
+                value="{{ settings.scalev_webhook_secret if settings else '' }}"
+                placeholder="Masukkan Webhook Secret"
+              />
+              <small class="form-text text-muted">
+                Secret key untuk memverifikasi webhook dari ScaleV
+              </small>
             </div>
-        </div>
+          </div>
+
+          <hr />
+
+          <!-- Mailketing Settings -->
+          <div class="mb-4">
+            <h6 class="text-success mb-3">
+              <i class="bi bi-envelope"></i> Mailketing API
+            </h6>
+
+            <div class="mb-3">
+              <label for="mailketing_api_key" class="form-label">API Key</label>
+              <div class="input-group">
+                <input
+                  type="text"
+                  class="form-control"
+                  id="mailketing_api_key"
+                  name="mailketing_api_key"
+                  value="{{ settings.mailketing_api_key if settings else '' }}"
+                  placeholder="Masukkan Mailketing API Key"
+                />
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  id="testMailketingBtn"
+                >
+                  <i class="bi bi-check-circle"></i> Test
+                </button>
+              </div>
+              <small class="form-text text-muted">
+                Dapatkan API key dari dashboard Mailketing Anda
+              </small>
+              <div id="mailketingTestResult" class="mt-2"></div>
+            </div>
+          </div>
+
+          <hr />
+
+          <!-- Telegram Notification Settings -->
+          <div class="mb-4">
+            <h6 class="text-info mb-3">
+              <i class="bi bi-telegram"></i> Telegram Notifications
+            </h6>
+            <p class="small text-muted">
+              Dapatkan notifikasi real-time ke Telegram untuk setiap event dari
+              Mailketing
+            </p>
+
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="telegram_enabled"
+                  name="telegram_enabled"
+                  value="1"
+                  {%
+                  if
+                  settings
+                  and
+                  settings.telegram_enabled
+                  %}checked{%
+                  endif
+                  %}
+                />
+                <label class="form-check-label" for="telegram_enabled">
+                  <strong>Aktifkan Notifikasi Telegram</strong>
+                </label>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="telegram_debug_mode"
+                  name="telegram_debug_mode"
+                  value="1"
+                  {%
+                  if
+                  settings
+                  and
+                  settings.telegram_debug_mode
+                  %}checked{%
+                  endif
+                  %}
+                />
+                <label class="form-check-label" for="telegram_debug_mode">
+                  <strong>🐛 Debug Mode</strong>
+                  <small class="text-muted d-block"
+                    >Kirim full JSON payload dari webhook untuk melihat semua
+                    data yang tersedia</small
+                  >
+                </label>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="telegram_bot_token" class="form-label"
+                >Bot Token</label
+              >
+              <input
+                type="text"
+                class="form-control"
+                id="telegram_bot_token"
+                name="telegram_bot_token"
+                value="{{ settings.telegram_bot_token if settings else '' }}"
+                placeholder="Masukkan Telegram Bot Token"
+              />
+              <small class="form-text text-muted">
+                Dapatkan token dari
+                <a href="https://t.me/BotFather" target="_blank">@BotFather</a>
+              </small>
+            </div>
+
+            <div class="mb-3">
+              <label for="telegram_chat_id" class="form-label">Chat ID</label>
+              <div class="input-group">
+                <input
+                  type="text"
+                  class="form-control"
+                  id="telegram_chat_id"
+                  name="telegram_chat_id"
+                  value="{{ settings.telegram_chat_id if settings else '' }}"
+                  placeholder="Masukkan Chat ID (contoh: 123456789)"
+                />
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  id="testTelegramBtn"
+                >
+                  <i class="bi bi-send"></i> Test
+                </button>
+              </div>
+              <small class="form-text text-muted">
+                Dapatkan Chat ID dari
+                <a href="https://t.me/userinfobot" target="_blank"
+                  >@userinfobot</a
+                >
+              </small>
+              <div id="telegramTestResult" class="mt-2"></div>
+            </div>
+
+            <div class="alert alert-info" role="alert">
+              <small>
+                <strong>Event yang akan dikirim notifikasi:</strong><br />
+                • 🚫 Email Bounce<br />
+                • 👁️ Email Open<br />
+                • 🖱️ Link Click<br />
+                • ❌ Unsubscribe
+              </small>
+            </div>
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bi bi-save"></i> Simpan Pengaturan
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-    
-    <div class="col-md-4">
-        <!-- Webhook URL Info -->
-        <div class="card mb-3">
-            <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-link-45deg"></i> Webhook URLs</h6>
-            </div>
-            <div class="card-body">
-                <p class="small mb-2"><strong>ScaleV Webhook:</strong></p>
-                <div class="alert alert-secondary mb-3">
-                    <code style="font-size: 0.8rem;">{{ request.url_root }}webhook/scalev</code>
-                    <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhook/scalev')">
-                        <i class="bi bi-clipboard"></i>
-                    </button>
-                </div>
-                
-                <p class="small mb-2"><strong>Mailketing Webhooks:</strong></p>
-                <div class="mb-2">
-                    <small class="text-muted">Bounce:</small>
-                    <div class="alert alert-secondary py-1 px-2 mb-1">
-                        <code style="font-size: 0.75rem;">{{ request.url_root }}webhooks/mailketing/bounce</code>
-                        <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/bounce')">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <small class="text-muted">Email Open:</small>
-                    <div class="alert alert-secondary py-1 px-2 mb-1">
-                        <code style="font-size: 0.75rem;">{{ request.url_root }}webhooks/mailketing/open</code>
-                        <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/open')">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <small class="text-muted">Link Click:</small>
-                    <div class="alert alert-secondary py-1 px-2 mb-1">
-                        <code style="font-size: 0.75rem;">{{ request.url_root }}webhooks/mailketing/click</code>
-                        <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/click')">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <small class="text-muted">Unsubscribe:</small>
-                    <div class="alert alert-secondary py-1 px-2 mb-0">
-                        <code style="font-size: 0.75rem;">{{ request.url_root }}webhooks/mailketing/unsubscribe</code>
-                        <button class="btn btn-sm btn-link p-0" onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/unsubscribe')">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
+  </div>
+
+  <div class="col-md-4">
+    <!-- Webhook URL Info -->
+    <div class="card mb-3">
+      <div class="card-header bg-white">
+        <h6 class="mb-0"><i class="bi bi-link-45deg"></i> Webhook URLs</h6>
+      </div>
+      <div class="card-body">
+        <p class="small mb-2"><strong>ScaleV Webhook:</strong></p>
+        <div class="alert alert-secondary mb-3">
+          <code style="font-size: 0.8rem"
+            >{{ request.url_root }}webhook/scalev</code
+          >
+          <button
+            class="btn btn-sm btn-link p-0"
+            onclick="copyToClipboard('{{ request.url_root }}webhook/scalev')"
+          >
+            <i class="bi bi-clipboard"></i>
+          </button>
         </div>
-        
-        <!-- Documentation Links -->
-        <div class="card">
-            <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-book"></i> Dokumentasi</h6>
-            </div>
-            <div class="card-body">
-                <ul class="list-unstyled mb-0">
-                    <li class="mb-2">
-                        <a href="https://developers.scalev.id/docs/overview" target="_blank" class="text-decoration-none">
-                            <i class="bi bi-arrow-right-circle"></i> ScaleV API Docs
-                        </a>
-                    </li>
-                    <li class="mb-2">
-                        <a href="https://developers.scalev.id/docs/enabling-webhooks-feature" target="_blank" class="text-decoration-none">
-                            <i class="bi bi-arrow-right-circle"></i> ScaleV Webhooks
-                        </a>
-                    </li>
-                    <li class="mb-2">
-                        <a href="https://mailketing.co.id/docs/api-get-all-list-from-account/" target="_blank" class="text-decoration-none">
-                            <i class="bi bi-arrow-right-circle"></i> Mailketing API Docs
-                        </a>
-                    </li>
-                </ul>
-            </div>
+
+        <p class="small mb-2"><strong>Mailketing Webhooks:</strong></p>
+        <div class="mb-2">
+          <small class="text-muted">Bounce:</small>
+          <div class="alert alert-secondary py-1 px-2 mb-1">
+            <code style="font-size: 0.75rem"
+              >{{ request.url_root }}webhooks/mailketing/bounce</code
+            >
+            <button
+              class="btn btn-sm btn-link p-0"
+              onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/bounce')"
+            >
+              <i class="bi bi-clipboard"></i>
+            </button>
+          </div>
         </div>
+        <div class="mb-2">
+          <small class="text-muted">Email Open:</small>
+          <div class="alert alert-secondary py-1 px-2 mb-1">
+            <code style="font-size: 0.75rem"
+              >{{ request.url_root }}webhooks/mailketing/open</code
+            >
+            <button
+              class="btn btn-sm btn-link p-0"
+              onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/open')"
+            >
+              <i class="bi bi-clipboard"></i>
+            </button>
+          </div>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Link Click:</small>
+          <div class="alert alert-secondary py-1 px-2 mb-1">
+            <code style="font-size: 0.75rem"
+              >{{ request.url_root }}webhooks/mailketing/click</code
+            >
+            <button
+              class="btn btn-sm btn-link p-0"
+              onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/click')"
+            >
+              <i class="bi bi-clipboard"></i>
+            </button>
+          </div>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Unsubscribe:</small>
+          <div class="alert alert-secondary py-1 px-2 mb-0">
+            <code style="font-size: 0.75rem"
+              >{{ request.url_root }}webhooks/mailketing/unsubscribe</code
+            >
+            <button
+              class="btn btn-sm btn-link p-0"
+              onclick="copyToClipboard('{{ request.url_root }}webhooks/mailketing/unsubscribe')"
+            >
+              <i class="bi bi-clipboard"></i>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- Documentation Links -->
+    <div class="card">
+      <div class="card-header bg-white">
+        <h6 class="mb-0"><i class="bi bi-book"></i> Dokumentasi</h6>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0">
+          <li class="mb-2">
+            <a
+              href="https://developers.scalev.id/docs/overview"
+              target="_blank"
+              class="text-decoration-none"
+            >
+              <i class="bi bi-arrow-right-circle"></i> ScaleV API Docs
+            </a>
+          </li>
+          <li class="mb-2">
+            <a
+              href="https://developers.scalev.id/docs/enabling-webhooks-feature"
+              target="_blank"
+              class="text-decoration-none"
+            >
+              <i class="bi bi-arrow-right-circle"></i> ScaleV Webhooks
+            </a>
+          </li>
+          <li class="mb-2">
+            <a
+              href="https://mailketing.co.id/docs/api-get-all-list-from-account/"
+              target="_blank"
+              class="text-decoration-none"
+            >
+              <i class="bi bi-arrow-right-circle"></i> Mailketing API Docs
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
+{% endblock %} {% block extra_js %}
 <script>
-function copyToClipboard(text) {
+  function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
-        alert('URL copied to clipboard!');
+      alert("URL copied to clipboard!");
     });
-}
+  }
 
-// Legacy function for backward compatibility
-function copyWebhookUrl() {
-    copyToClipboard('{{ request.url_root }}webhook/scalev');
-}
+  // Legacy function for backward compatibility
+  function copyWebhookUrl() {
+    copyToClipboard("{{ request.url_root }}webhook/scalev");
+  }
 
-// Test ScaleV Connection
-document.getElementById('testScalevBtn').addEventListener('click', function() {
-    const apiKey = document.getElementById('scalev_api_key').value;
-    
-    if (!apiKey) {
-        alert('Masukkan API key terlebih dahulu');
+  // Test ScaleV Connection
+  document
+    .getElementById("testScalevBtn")
+    .addEventListener("click", function () {
+      const apiKey = document.getElementById("scalev_api_key").value;
+
+      if (!apiKey) {
+        alert("Masukkan API key terlebih dahulu");
         return;
-    }
-    
-    const resultDiv = document.getElementById('scalevTestResult');
-    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Testing...';
-    
-    fetch('/api/test-scalev', {
-        method: 'POST',
+      }
+
+      const resultDiv = document.getElementById("scalevTestResult");
+      resultDiv.innerHTML =
+        '<div class="spinner-border spinner-border-sm" role="status"></div> Testing...';
+
+      fetch("/api/test-scalev", {
+        method: "POST",
         headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
             resultDiv.innerHTML = `<div class="alert alert-success alert-sm mb-0">
                 <i class="bi bi-check-circle"></i> Koneksi berhasil! Ditemukan ${data.products_count} products.
             </div>`;
-        } else {
+          } else {
             resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
                 <i class="bi bi-x-circle"></i> ${data.message}
             </div>`;
-        }
-    })
-    .catch(error => {
-        resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+          }
+        })
+        .catch((error) => {
+          resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
             <i class="bi bi-x-circle"></i> Error: ${error.message}
         </div>`;
+        });
     });
-});
 
-// Test Mailketing Connection
-document.getElementById('testMailketingBtn').addEventListener('click', function() {
-    const apiKey = document.getElementById('mailketing_api_key').value;
-    
-    if (!apiKey) {
-        alert('Masukkan API key terlebih dahulu');
+  // Test Mailketing Connection
+  document
+    .getElementById("testMailketingBtn")
+    .addEventListener("click", function () {
+      const apiKey = document.getElementById("mailketing_api_key").value;
+
+      if (!apiKey) {
+        alert("Masukkan API key terlebih dahulu");
         return;
-    }
-    
-    const resultDiv = document.getElementById('mailketingTestResult');
-    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Testing...';
-    
-    fetch('/api/test-mailketing', {
-        method: 'POST',
+      }
+
+      const resultDiv = document.getElementById("mailketingTestResult");
+      resultDiv.innerHTML =
+        '<div class="spinner-border spinner-border-sm" role="status"></div> Testing...';
+
+      fetch("/api/test-mailketing", {
+        method: "POST",
         headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
             resultDiv.innerHTML = `<div class="alert alert-success alert-sm mb-0">
                 <i class="bi bi-check-circle"></i> Koneksi berhasil! Ditemukan ${data.lists_count} lists.
             </div>`;
-        } else {
+          } else {
             resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
                 <i class="bi bi-x-circle"></i> ${data.message}
             </div>`;
-        }
-    })
-    .catch(error => {
-        resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+          }
+        })
+        .catch((error) => {
+          resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
             <i class="bi bi-x-circle"></i> Error: ${error.message}
         </div>`;
+        });
     });
-});
 
-// Test Telegram Connection
-document.getElementById('testTelegramBtn').addEventListener('click', function() {
-    const botToken = document.getElementById('telegram_bot_token').value;
-    const chatId = document.getElementById('telegram_chat_id').value;
-    
-    if (!botToken || !chatId) {
-        alert('Masukkan Bot Token dan Chat ID terlebih dahulu');
+  // Test Telegram Connection
+  document
+    .getElementById("testTelegramBtn")
+    .addEventListener("click", function () {
+      const botToken = document.getElementById("telegram_bot_token").value;
+      const chatId = document.getElementById("telegram_chat_id").value;
+
+      if (!botToken || !chatId) {
+        alert("Masukkan Bot Token dan Chat ID terlebih dahulu");
         return;
-    }
-    
-    const resultDiv = document.getElementById('telegramTestResult');
-    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Testing...';
-    
-    fetch('/api/test-telegram', {
-        method: 'POST',
+      }
+
+      const resultDiv = document.getElementById("telegramTestResult");
+      resultDiv.innerHTML =
+        '<div class="spinner-border spinner-border-sm" role="status"></div> Testing...';
+
+      fetch("/api/test-telegram", {
+        method: "POST",
         headers: {
-            'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            bot_token: botToken,
-            chat_id: chatId
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+          bot_token: botToken,
+          chat_id: chatId,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
             resultDiv.innerHTML = `<div class="alert alert-success alert-sm mb-0">
                 <i class="bi bi-check-circle"></i> ${data.message}<br>
                 <small>Cek Telegram Anda untuk melihat pesan test!</small>
             </div>`;
-        } else {
+          } else {
             resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
                 <i class="bi bi-x-circle"></i> ${data.message}
             </div>`;
-        }
-    })
-    .catch(error => {
-        resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
+          }
+        })
+        .catch((error) => {
+          resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mb-0">
             <i class="bi bi-x-circle"></i> Error: ${error.message}
         </div>`;
+        });
     });
-});
 </script>
 {% endblock %}
