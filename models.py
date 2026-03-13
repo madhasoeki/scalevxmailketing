@@ -170,3 +170,19 @@ class LeadHistory(db.Model):
     
     def __repr__(self):
         return f'<LeadHistory {self.lead_id}: {self.from_status} -> {self.to_status}>'
+
+
+class BounceEmail(db.Model):
+    """Store bounced subscriber emails to avoid re-sending"""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), nullable=False)
+    email_lower = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    reason = db.Column(db.Text, nullable=True)
+    source = db.Column(db.String(100), nullable=True)  # e.g., mailketing
+    raw_payload = db.Column(db.Text, nullable=True)
+    bounced_at = db.Column(db.DateTime, default=get_wib_now)
+    created_at = db.Column(db.DateTime, default=get_wib_now)
+    updated_at = db.Column(db.DateTime, default=get_wib_now, onupdate=get_wib_now)
+
+    def __repr__(self):
+        return f'<BounceEmail {self.email_lower}>'

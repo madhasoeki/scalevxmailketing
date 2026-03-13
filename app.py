@@ -47,7 +47,7 @@ from database import db
 db.init_app(app)
 
 # Import models after db initialization
-from models import Settings, ProductList, Lead, LeadHistory, get_wib_now as get_wib_now_naive
+from models import Settings, ProductList, Lead, LeadHistory, BounceEmail, get_wib_now as get_wib_now_naive
 
 # Import services
 from services.scalev_service import ScalevService
@@ -84,6 +84,29 @@ def to_wib_time_filter(dt):
         return dt.strftime('%H:%M WIB')
     return dt.astimezone(WIB).strftime('%H:%M WIB')
 
+
+def normalize_email(email):
+    """Normalize email for consistent comparisons"""
+    return email.strip().lower() if email else None
+
+
+def get_bounce_record(email):
+    """Return bounce record if email is marked bounced"""
+    normalized = normalize_email(email)
+    if not normalized:
+        return None
+    return BounceEmail.query.filter_by(email_lower=normalized).first()
+
+
+def is_bounced_email(email):
+    """Check if email is bounced and log reason"""
+    bounce = get_bounce_record(email)
+    if bounce:
+        reason = bounce.reason or 'unknown'
+        print(f"🚫 Skip Mailketing: {email} is marked as bounced (reason: {reason})")
+        return True, bounce
+    return False, None
+
 # Initialize scheduler
 scheduler = BackgroundScheduler()
 
@@ -108,6 +131,11 @@ def check_expired_leads():
                 if product_list and product_list.mailketing_list_not_closing:
                     settings = Settings.query.first()
                     if settings and settings.mailketing_api_key:
+                        is_bounced, _ = is_bounced_email(lead.email)
+                        if is_bounced:
+                            print(f"  🚫 Skipped Mailketing send for bounced email: {lead.email}")
+                            continue
+                        
                         mailketing = MailketingService(settings.mailketing_api_key)
                         result = mailketing.add_subscriber(
                             list_id=product_list.mailketing_list_not_closing,
@@ -589,20 +617,24 @@ def bulk_move_expired_leads():
                 if product_list and product_list.mailketing_list_not_closing:
                     settings_obj = Settings.query.first()
                     if settings_obj and settings_obj.mailketing_api_key:
-                        mailketing = MailketingService(settings_obj.mailketing_api_key)
-                        result = mailketing.add_subscriber(
-                            list_id=product_list.mailketing_list_not_closing,
-                            email=lead.email,
-                            first_name=lead.name,
-                            mobile=lead.phone
-                        )
-                        
-                        if result:
-                            lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_not_closing)
-                            sent_to_mailketing_count += 1
-                            print(f"  ✓ Sent to Mailketing list: {product_list.mailketing_list_not_closing}")
+                        is_bounced, _ = is_bounced_email(lead.email)
+                        if is_bounced:
+                            print(f"  🚫 Skipped Mailketing send for bounced email: {lead.email}")
                         else:
-                            print(f"  ⚠️  Failed to send to Mailketing")
+                            mailketing = MailketingService(settings_obj.mailketing_api_key)
+                            result = mailketing.add_subscriber(
+                                list_id=product_list.mailketing_list_not_closing,
+                                email=lead.email,
+                                first_name=lead.name,
+                                mobile=lead.phone
+                            )
+                            
+                            if result:
+                                lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_not_closing)
+                                sent_to_mailketing_count += 1
+                                print(f"  ✓ Sent to Mailketing list: {product_list.mailketing_list_not_closing}")
+                            else:
+                                print(f"  ⚠️  Failed to send to Mailketing")
                 else:
                     print(f"  ⚠️  No Not Closing list configured")
                 
@@ -665,24 +697,29 @@ def test_move_to_not_closing(lead_id):
             if settings_obj and settings_obj.mailketing_api_key:
                 print(f"Sending to Not Closing List ID: {product_list.mailketing_list_not_closing}")
                 
-                mailketing = MailketingService(settings_obj.mailketing_api_key)
-                result = mailketing.add_subscriber(
-                    list_id=product_list.mailketing_list_not_closing,
-                    email=lead.email,
-                    first_name=lead.name,
-                    mobile=lead.phone
-                )
-                
-                print(f"Mailketing API Response: {result}")
-                
-                if result:
-                    # Mark as sent with list ID
-                    lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_not_closing)
-                    print(f"✓ Lead marked as sent to Mailketing")
-                    flash(f'✅ SUCCESS! Lead dipindahkan ke Not Closing dan berhasil dikirim ke Mailketing List {product_list.mailketing_list_not_closing}', 'success')
+                is_bounced, _ = is_bounced_email(lead.email)
+                if is_bounced:
+                    print(f"🚫 Not sending to Mailketing because email is bounced")
+                    flash('🚫 Email ini tercatat bounce, tidak dikirim ke Mailketing', 'warning')
                 else:
-                    print(f"⚠ Failed to send to Mailketing")
-                    flash(f'⚠ Lead dipindahkan ke Not Closing, tapi gagal dikirim ke Mailketing', 'warning')
+                    mailketing = MailketingService(settings_obj.mailketing_api_key)
+                    result = mailketing.add_subscriber(
+                        list_id=product_list.mailketing_list_not_closing,
+                        email=lead.email,
+                        first_name=lead.name,
+                        mobile=lead.phone
+                    )
+                    
+                    print(f"Mailketing API Response: {result}")
+                    
+                    if result:
+                        # Mark as sent with list ID
+                        lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_not_closing)
+                        print(f"✓ Lead marked as sent to Mailketing")
+                        flash(f'✅ SUCCESS! Lead dipindahkan ke Not Closing dan berhasil dikirim ke Mailketing List {product_list.mailketing_list_not_closing}', 'success')
+                    else:
+                        print(f"⚠ Failed to send to Mailketing")
+                        flash(f'⚠ Lead dipindahkan ke Not Closing, tapi gagal dikirim ke Mailketing', 'warning')
             else:
                 print(f"⚠ Mailketing API key not configured")
                 flash(f'⚠ Lead dipindahkan ke Not Closing, tapi Mailketing API key belum diatur', 'warning')
@@ -983,18 +1020,22 @@ def scalev_webhook():
                         try:
                             settings_obj = Settings.query.first()
                             if settings_obj and settings_obj.mailketing_api_key:
-                                mailketing = MailketingService(settings_obj.mailketing_api_key)
-                                result = mailketing.add_subscriber(
-                                    list_id=product_list.mailketing_list_followup,
-                                    email=lead.email,
-                                    first_name=lead.name,
-                                    mobile=lead.phone
-                                )
-                                if result:
-                                    lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_followup)
-                                    print(f"   ✓ Subscriber added to Follow Up list")
+                                is_bounced, _ = is_bounced_email(lead.email)
+                                if is_bounced:
+                                    print(f"   🚫 Not sending to Follow Up list because email is bounced")
                                 else:
-                                    print(f"   ⚠️  Failed to add subscriber to Follow Up list")
+                                    mailketing = MailketingService(settings_obj.mailketing_api_key)
+                                    result = mailketing.add_subscriber(
+                                        list_id=product_list.mailketing_list_followup,
+                                        email=lead.email,
+                                        first_name=lead.name,
+                                        mobile=lead.phone
+                                    )
+                                    if result:
+                                        lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_followup)
+                                        print(f"   ✓ Subscriber added to Follow Up list")
+                                    else:
+                                        print(f"   ⚠️  Failed to add subscriber to Follow Up list")
                             else:
                                 print(f"   ⚠️  Mailketing API key not configured")
                         except Exception as e:
@@ -1025,18 +1066,22 @@ def scalev_webhook():
                             try:
                                 settings_obj = Settings.query.first()
                                 if settings_obj and settings_obj.mailketing_api_key:
-                                    mailketing = MailketingService(settings_obj.mailketing_api_key)
-                                    result = mailketing.add_subscriber(
-                                        list_id=product_list.mailketing_list_closing,
-                                        email=lead.email,
-                                        first_name=lead.name,
-                                        mobile=lead.phone
-                                    )
-                                    if result:
-                                        lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_closing)
-                                        print(f"   ✓ Subscriber added to Closing list")
+                                    is_bounced, _ = is_bounced_email(lead.email)
+                                    if is_bounced:
+                                        print(f"   🚫 Not sending to Closing list because email is bounced")
                                     else:
-                                        print(f"   ⚠️  Failed to add subscriber to Closing list")
+                                        mailketing = MailketingService(settings_obj.mailketing_api_key)
+                                        result = mailketing.add_subscriber(
+                                            list_id=product_list.mailketing_list_closing,
+                                            email=lead.email,
+                                            first_name=lead.name,
+                                            mobile=lead.phone
+                                        )
+                                        if result:
+                                            lead_service.mark_sent_to_mailketing(lead, product_list.mailketing_list_closing)
+                                            print(f"   ✓ Subscriber added to Closing list")
+                                        else:
+                                            print(f"   ⚠️  Failed to add subscriber to Closing list")
                                 else:
                                     print(f"   ⚠️  Mailketing API key not configured")
                             except Exception as e:
@@ -1176,6 +1221,9 @@ def mailketing_webhook_bounce():
             return jsonify({'success': False, 'error': 'Invalid event type'}), 400
         
         email = data.get('email')
+        if not email:
+            return jsonify({'success': False, 'error': 'Email is required'}), 400
+
         reason = data.get('reason', 'Unknown reason')
         date = data.get('date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
         
@@ -1184,6 +1232,36 @@ def mailketing_webhook_bounce():
         print(f"   Reason: {reason}")
         print(f"   Date: {date}")
         print(f"   Full payload: {json.dumps(data, indent=2)}")
+        
+        # Persist bounce record
+        try:
+            normalized_email = normalize_email(email)
+            existing_bounce = BounceEmail.query.filter_by(email_lower=normalized_email).first()
+            raw_payload = json.dumps(data, ensure_ascii=False)
+            bounced_at = get_wib_now_naive()
+            
+            if existing_bounce:
+                existing_bounce.reason = reason
+                existing_bounce.source = 'mailketing'
+                existing_bounce.raw_payload = raw_payload
+                existing_bounce.bounced_at = bounced_at
+                existing_bounce.updated_at = get_wib_now_naive()
+                bounce_record = existing_bounce
+            else:
+                bounce_record = BounceEmail(
+                    email=email,
+                    email_lower=normalized_email,
+                    reason=reason,
+                    source='mailketing',
+                    raw_payload=raw_payload,
+                    bounced_at=bounced_at
+                )
+                db.session.add(bounce_record)
+            db.session.commit()
+            print(f"   ✓ Bounce saved for {email}")
+        except Exception as save_err:
+            db.session.rollback()
+            print(f"   ⚠️  Failed to save bounce record: {save_err}")
         
         # Send Telegram notification if enabled
         settings_obj = Settings.query.first()
